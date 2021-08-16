@@ -28,3 +28,6 @@ echo "Key $(${RLY} proxy-tendermint keys restore ibc0 testkey "$SEED0") imported
 
 SEED1=$(jq -r '.mnemonic' < ${FIXTURES_DIR}/tendermint/ibc1/key_seed.json)
 echo "Key $(${RLY} proxy-tendermint keys restore ibc1 testkey "$SEED1") imported from ibc1 to relayer..."
+
+SEED2=$(jq -r '.mnemonic' < ${FIXTURES_DIR}/tendermint/proxy0/key_seed.json)
+echo "Key $(${RLY} proxy-tendermint keys restore proxy0 testkey "$SEED2") imported from proxy0 to relayer..."

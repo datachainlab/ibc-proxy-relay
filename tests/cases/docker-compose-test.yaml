@@ -38,7 +38,7 @@ services:
       - *network-common
   tendermint-proxy0:
     container_name: tendermint-proxy0
-    image: tendermint-chain0:${TAG}
+    image: tendermint-proxy0:${TAG}
     ports:
       - 26466:26656
       - 26457:26657
