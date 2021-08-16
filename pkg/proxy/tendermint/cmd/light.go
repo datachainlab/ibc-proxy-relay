@@ -42,7 +42,15 @@ func initLightCmd(ctx *config.Context) *cobra.Command {
 				return err
 			}
 			chain := c.ChainI.(*tendermint.Chain)
-			prover := c.ProverI.(*proxy.Prover).GetUnderlyingProver().(*tendermint.Prover)
+			var prover *tendermint.Prover
+			switch p := c.ProverI.(type) {
+			case *proxy.Prover:
+				prover = p.GetUnderlyingProver().(*tendermint.Prover)
+			case *tendermint.Prover:
+				prover = p
+			default:
+				return fmt.Errorf("unexpected type: %T", p)
+			}
 
 			db, df, err := prover.NewLightDB()
 			if err != nil {
