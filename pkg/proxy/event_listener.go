@@ -1,0 +1,201 @@
+package proxy
+
+import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
+	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
+	commitmenttypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
+	host "github.com/cosmos/ibc-go/modules/core/24-host"
+	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
+	proxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
+	"github.com/hyperledger-labs/yui-relayer/core"
+)
+
+var (
+	ConnectionVersion         = conntypes.ExportedVersionsToProto(conntypes.GetCompatibleVersions())[0]
+	DefaultDelayPeriod uint64 = 0
+)
+
+// path: a path kept on upstream chain
+// WARNING: This callback function calling may be skipped if the relayer is stopped for some reason.
+func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
+	for _, msg := range msgs {
+		var err error
+		switch msg := msg.(type) {
+		case *clienttypes.MsgCreateClient:
+			// nop
+		case *clienttypes.MsgUpdateClient:
+			// nop
+		case *conntypes.MsgConnectionOpenInit:
+			err = pr.onConnectionOpenInit(path, msg)
+		case *conntypes.MsgConnectionOpenTry:
+			err = pr.onConnectionOpenTry(path, msg)
+		case *conntypes.MsgConnectionOpenAck:
+			err = pr.onConnectionOpenAck(path, msg)
+		case *conntypes.MsgConnectionOpenConfirm:
+			// nop
+		case *chantypes.MsgChannelOpenInit:
+			panic("not implemented error")
+		case *chantypes.MsgChannelOpenTry:
+			panic("not implemented error")
+		case *chantypes.MsgChannelOpenAck:
+			panic("not implemented error")
+		case *chantypes.MsgChannelOpenConfirm:
+			// nop
+		case *chantypes.MsgRecvPacket:
+			panic("not implemented error")
+		case *chantypes.MsgAcknowledgement:
+			panic("not implemented error")
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (pr *Prover) onConnectionOpenInit(path *core.PathEnd, msg *conntypes.MsgConnectionOpenInit) error {
+	provableHeight, err := pr.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	clientRes, err := pr.prover.QueryClientStateWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+
+	clientState := clientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+	consensusHeight := clientState.GetLatestHeight()
+	consensusRes, err := pr.prover.QueryClientConsensusStateWithProof(provableHeight, consensusHeight)
+	if err != nil {
+		return err
+	}
+	connRes, err := pr.prover.QueryConnectionWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+
+	proxyMsg := &proxytypes.MsgProxyConnectionOpenTry{
+		ConnectionId:     path.ConnectionID,
+		UpstreamClientId: pr.upstream.UpstreamClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		Connection: conntypes.NewConnectionEnd(
+			conntypes.INIT,
+			path.ClientID,
+			msg.Counterparty,
+			[]*conntypes.Version{ConnectionVersion}, DefaultDelayPeriod,
+		),
+		ClientState:     clientRes.ClientState,
+		ConsensusState:  consensusRes.ConsensusState,
+		ProofInit:       connRes.Proof,
+		ProofClient:     clientRes.Proof,
+		ProofConsensus:  consensusRes.Proof,
+		ProofHeight:     clientRes.ProofHeight,
+		ConsensusHeight: consensusHeight.(clienttypes.Height),
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *Prover) onConnectionOpenTry(path *core.PathEnd, msg *conntypes.MsgConnectionOpenTry) error {
+	provableHeight, err := pr.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	clientRes, err := pr.prover.QueryClientStateWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+
+	clientState := clientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+	consensusHeight := clientState.GetLatestHeight()
+	consensusRes, err := pr.prover.QueryClientConsensusStateWithProof(provableHeight, consensusHeight)
+	if err != nil {
+		return err
+	}
+	connRes, err := pr.prover.QueryConnectionWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+
+	proxyMsg := &proxytypes.MsgProxyConnectionOpenAck{
+		ConnectionId:     path.ConnectionID,
+		UpstreamClientId: pr.upstream.UpstreamClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		Connection: conntypes.NewConnectionEnd(
+			conntypes.TRYOPEN,
+			path.ClientID,
+			msg.Counterparty,
+			[]*conntypes.Version{ConnectionVersion}, DefaultDelayPeriod,
+		),
+		ClientState:     clientRes.ClientState,
+		ConsensusState:  consensusRes.ConsensusState,
+		ProofTry:        connRes.Proof,
+		ProofClient:     clientRes.Proof,
+		ProofConsensus:  consensusRes.Proof,
+		ProofHeight:     clientRes.ProofHeight,
+		ConsensusHeight: consensusHeight.(clienttypes.Height),
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConnectionOpenAck) error {
+	provableHeight, err := pr.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	connRes, err := pr.prover.QueryConnectionWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
+		ConnectionId:     path.ConnectionID,
+		UpstreamClientId: pr.upstream.UpstreamClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		Connection: conntypes.NewConnectionEnd(
+			conntypes.TRYOPEN,
+			path.ClientID,
+			conntypes.Counterparty{
+				ClientId:     "", // TODO fix to remove this
+				ConnectionId: msg.CounterpartyConnectionId,
+				Prefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			},
+			[]*conntypes.Version{ConnectionVersion}, DefaultDelayPeriod,
+		),
+		ProofAck:    connRes.Proof,
+		ProofHeight: connRes.ProofHeight,
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// updateProxyUpstreamClient updates the upstream client on the proxy
+func (pr *Prover) updateProxyUpstreamClient() (int64, error) {
+	h, provableHeight, _, err := pr.prover.UpdateLightWithHeader()
+	if err != nil {
+		return 0, err
+	}
+	header, err := pr.prover.SetupHeader(pr.upstream.Proxy, h)
+	if err != nil {
+		return 0, err
+	}
+	addr, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return 0, err
+	}
+	_, err = pr.upstream.Proxy.SendMsgs(
+		[]sdk.Msg{pr.upstream.Proxy.Path().UpdateClient(header, addr)},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return provableHeight, nil
+}

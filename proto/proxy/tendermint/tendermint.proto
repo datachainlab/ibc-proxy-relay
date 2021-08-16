@@ -1,0 +1,16 @@
+syntax = "proto3";
+package ibc.proxy.tendermint.v1;
+
+option go_package = "github.com/datachainlab/ibc-proxy-prover/pkg/proxy/tendermint";
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+import "relayer/chains/tendermint/config.proto";
+
+message ProxyChainConfig {
+  relayer.chains.tendermint.config.ChainConfig chain_config = 1;
+}
+
+message ProxyChainProverConfig {
+  relayer.chains.tendermint.config.ProverConfig prover_config = 1;
+}

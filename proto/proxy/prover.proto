@@ -1,0 +1,25 @@
+syntax = "proto3";
+package ibc.proxy.prover.v1;
+
+option go_package = "github.com/datachainlab/ibc-proxy-prover/pkg/proxy";
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+
+message ProverConfig {
+    google.protobuf.Any prover = 1;
+    UpstreamConfig      upstream = 2;
+    DownstreamConfig    downstream = 3;
+}
+
+message UpstreamConfig {
+    google.protobuf.Any proxy_chain = 1;
+    google.protobuf.Any proxy_chain_prover = 2;
+    // the client id corresponding to the upstream on the proxy machine
+    // TODO this parameter should be moved into a path configuration
+    string upstream_client_id = 3;
+}
+
+message DownstreamConfig {
+    google.protobuf.Any proxy_chain = 1;
+}
