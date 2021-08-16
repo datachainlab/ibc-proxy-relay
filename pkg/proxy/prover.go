@@ -15,7 +15,6 @@ import (
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
 
-// TODO how to initialize a chain that implements ProxiableChainI
 type Prover struct {
 	chain      ProxiableChainI
 	prover     core.ProverI
@@ -34,14 +33,11 @@ func NewProver(chain ProxiableChainI, prover core.ProverI, upstreamConfig *Upstr
 	} else if downstreamConfig != nil {
 		prover = NewDownstreamProver(prover)
 	}
-	// XXX: the following params should be given from the relayer
-	homePath := viper.GetString(flags.FlagHome)
-	timeout := time.Minute
 	pr := &Prover{
 		chain:      chain,
 		prover:     prover,
-		upstream:   NewUpstream(upstreamConfig, chain, homePath, timeout),
-		downstream: NewDownstream(downstreamConfig, chain, homePath, timeout),
+		upstream:   NewUpstream(upstreamConfig, chain),
+		downstream: NewDownstream(downstreamConfig, chain),
 	}
 	if pr.upstream != nil {
 		pr.chain.RegisterEventListener(pr)
@@ -65,6 +61,7 @@ func (pr *Prover) GetChainID() string {
 
 // QueryLatestHeader returns the latest header from the chain
 func (pr *Prover) QueryLatestHeader() (out core.HeaderI, err error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryLatestHeader()
 	} else {
@@ -74,6 +71,7 @@ func (pr *Prover) QueryLatestHeader() (out core.HeaderI, err error) {
 
 // GetLatestLightHeight returns the latest height on the light client
 func (pr *Prover) GetLatestLightHeight() (int64, error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.GetLatestLightHeight()
 	} else {
@@ -83,6 +81,7 @@ func (pr *Prover) GetLatestLightHeight() (int64, error) {
 
 // CreateMsgCreateClient creates a CreateClientMsg to this chain
 func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.CreateMsgCreateClient(clientID, dstHeader, signer)
 	} else {
@@ -92,6 +91,7 @@ func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI,
 
 // SetupHeader creates a new header based on a given header
 func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader core.HeaderI) (core.HeaderI, error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.SetupHeader(dst, baseSrcHeader)
 	} else {
@@ -101,6 +101,7 @@ func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader co
 
 // UpdateLightWithHeader updates a header on the light client and returns the header and height corresponding to the chain
 func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight int64, queryableHeight int64, err error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.UpdateLightWithHeader()
 	} else {
@@ -110,6 +111,7 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 
 // QueryClientConsensusState returns the ClientConsensusState and its proof
 func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
 	} else {
@@ -119,6 +121,7 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 
 // QueryClientStateWithProof returns the ClientState and its proof
 func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height, "TODO-upstreamClientID")
 	} else {
@@ -137,6 +140,7 @@ func (pr *Prover) QueryConnectionWithProof(height int64) (*conntypes.QueryConnec
 
 // QueryChannelWithProof returns the Channel and its proof
 func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryChannelResponse, err error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryProxyChannelWithProof(height, "TODO-upstreamClientID")
 	} else {
@@ -146,6 +150,7 @@ func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryC
 
 // QueryPacketCommitmentWithProof returns the packet commitment and its proof
 func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq, "TODO-upstreamClientID")
 	} else {
@@ -155,6 +160,7 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 
 // QueryPacketAcknowledgementCommitmentWithProof returns the packet acknowledgement commitment and its proof
 func (pr *Prover) QueryPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error) {
+	pr.xxxInitChains()
 	if pr.upstream != nil {
 		return pr.upstream.Proxy.QueryProxyPacketAcknowledgementCommitmentWithProof(height, seq, "TODO-upstreamClientID")
 	} else {
@@ -175,4 +181,22 @@ func NewDownstreamProver(prover core.ProverI) *DownstreamProver {
 func (p *DownstreamProver) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
 	// TODO returns a msg corredponding to MultiV client
 	panic("not implemented error")
+}
+
+// xxxInitChains initializes the codec of chains
+// NOTE: This method should be removed after the problem with the prover not giving a codec is fixed
+func (pr *Prover) xxxInitChains() {
+	// XXX: the following params should be given from the relayer
+	homePath := viper.GetString(flags.FlagHome)
+	timeout := time.Minute
+	if pr.upstream != nil && pr.upstream.Proxy.ProxyChainI.Codec() == nil {
+		if err := pr.upstream.Proxy.ProxyChainI.Init(homePath, timeout, pr.chain.Codec(), true); err != nil {
+			panic(err)
+		}
+	}
+	if pr.downstream != nil && pr.downstream.ProxyChain.Codec() == nil {
+		if err := pr.downstream.ProxyChain.Init(homePath, timeout, pr.chain.Codec(), true); err != nil {
+			panic(err)
+		}
+	}
 }

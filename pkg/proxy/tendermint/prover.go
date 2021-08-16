@@ -7,6 +7,7 @@ import (
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
+	proxytypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
@@ -35,8 +36,24 @@ func NewProxyChainProver(cfg *ProxyChainProverConfig, proxyChain proxy.ProxyChai
 
 // CreateMsgCreateClient creates a CreateClientMsg to this chain
 func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
-	// TODO returns a msg that corresponding to ProxyClient https://github.com/datachainlab/ibc-proxy/blob/945de5a19447cf9369a8b6d38fa8b29d710849aa/modules/light-clients/xx-proxy/types/proxy.pb.go#L29
-	panic("not implemented error")
+	msg, err := p.Prover.CreateMsgCreateClient(clientID, dstHeader, signer)
+	if err != nil {
+		return nil, err
+	}
+	clientState := proxytypes.NewClientState("", msg.ClientState)
+	anyClientState, err := clienttypes.PackClientState(clientState)
+	if err != nil {
+		return nil, err
+	}
+	consensusState := proxytypes.NewConsensusState(msg.ConsensusState)
+	anyConsensusState, err := clienttypes.PackConsensusState(consensusState)
+	if err != nil {
+		return nil, err
+	}
+	return &clienttypes.MsgCreateClient{
+		ClientState:    anyClientState,
+		ConsensusState: anyConsensusState,
+	}, nil
 }
 
 // TODO other lightclient's methods should be also implemented

@@ -1,8 +1,6 @@
 package proxy
 
 import (
-	"time"
-
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/gogo/protobuf/proto"
 	"github.com/hyperledger-labs/yui-relayer/core"
@@ -33,7 +31,7 @@ type Upstream struct {
 	UpstreamClientID string
 }
 
-func NewUpstream(config *UpstreamConfig, chain core.ChainI, homePath string, timeout time.Duration) *Upstream {
+func NewUpstream(config *UpstreamConfig, chain core.ChainI) *Upstream {
 	if config == nil {
 		return nil
 	}
@@ -43,9 +41,6 @@ func NewUpstream(config *UpstreamConfig, chain core.ChainI, homePath string, tim
 	}
 	proxyProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
 	if err != nil {
-		panic(err)
-	}
-	if err := proxyChain.Init(homePath, timeout, chain.Codec(), true); err != nil {
 		panic(err)
 	}
 	return &Upstream{
@@ -58,15 +53,12 @@ type Downstream struct {
 	ProxyChain core.ChainI
 }
 
-func NewDownstream(config *DownstreamConfig, chain core.ChainI, homePath string, timeout time.Duration) *Downstream {
+func NewDownstream(config *DownstreamConfig, chain core.ChainI) *Downstream {
 	if config == nil {
 		return nil
 	}
 	proxyChain, err := config.ProxyChain.GetCachedValue().(ProxyChainConfigI).Build()
 	if err != nil {
-		panic(err)
-	}
-	if err := proxyChain.Init(homePath, timeout, chain.Codec(), true); err != nil {
 		panic(err)
 	}
 	return &Downstream{
