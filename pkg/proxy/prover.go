@@ -10,6 +10,7 @@ import (
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
+	multivtypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-multiv/types"
 	"github.com/spf13/viper"
 
 	"github.com/hyperledger-labs/yui-relayer/core"
@@ -179,12 +180,21 @@ func NewDownstreamProver(prover core.ProverI) *DownstreamProver {
 }
 
 func (p *DownstreamProver) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
-	// TODO returns a msg corredponding to MultiV client
-	panic("not implemented error")
+	msg, err := p.ProverI.CreateMsgCreateClient(clientID, dstHeader, signer)
+	if err != nil {
+		return nil, err
+	}
+	clientState := multivtypes.NewClientState(msg.ClientState)
+	anyClientState, err := clienttypes.PackClientState(clientState)
+	if err != nil {
+		return nil, err
+	}
+	msg.ClientState = anyClientState
+	return msg, nil
 }
 
 // xxxInitChains initializes the codec of chains
-// NOTE: This method should be removed after the problem with the prover not giving a codec is fixed
+// TODO: This method should be removed after the problem with the prover not giving a codec is fixed
 func (pr *Prover) xxxInitChains() {
 	// XXX: the following params should be given from the relayer
 	homePath := viper.GetString(flags.FlagHome)
