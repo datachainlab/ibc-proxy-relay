@@ -21,6 +21,14 @@ func NewProxyProvableChain(chain ProxyChainI, prover ProxyChainProverI) *ProxyPr
 type ProxyChainI interface {
 	core.ChainI
 	ProxyChainQueryierI
+
+	SetProxyPath(ProxyPath)
+	ProxyPath() ProxyPath
+}
+
+type ProxyPath struct {
+	UpstreamClientID string
+	UpstreamChain    core.ChainI
 }
 
 type ProxyChainQueryierI interface {

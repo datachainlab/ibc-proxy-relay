@@ -22,12 +22,21 @@ func (c *ProxyChainConfig) Build() (proxy.ProxyChainI, error) {
 
 type TendermintProxyChain struct {
 	*tendermint.Chain
+	proxyPath proxy.ProxyPath
 }
 
 var _ proxy.ProxyChainI = (*TendermintProxyChain)(nil)
 
 func NewTendermintProxyChain(chain *tendermint.Chain) *TendermintProxyChain {
 	return &TendermintProxyChain{Chain: chain}
+}
+
+func (c *TendermintProxyChain) SetProxyPath(path proxy.ProxyPath) {
+	c.proxyPath = path
+}
+
+func (c *TendermintProxyChain) ProxyPath() proxy.ProxyPath {
+	return c.proxyPath
 }
 
 func (c *TendermintProxyChain) QueryProxyClientState(height int64, upstreamClientID string) (*clienttypes.QueryClientStateResponse, error) {

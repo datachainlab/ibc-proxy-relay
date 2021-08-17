@@ -39,6 +39,10 @@ func NewUpstream(config *UpstreamConfig, chain core.ChainI) *Upstream {
 	if err != nil {
 		panic(err)
 	}
+	proxyChain.SetProxyPath(ProxyPath{
+		UpstreamClientID: config.UpstreamClientId,
+		UpstreamChain:    chain,
+	})
 	proxyProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
 	if err != nil {
 		panic(err)

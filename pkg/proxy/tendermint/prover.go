@@ -51,7 +51,15 @@ func (p *ProxyChainProver) Codec() codec.ProtoCodecMarshaler {
 	return p.proxyChain.Codec()
 }
 
-func (p *ProxyChainProver) GetUpstreamPrefix() *commitmenttypes.MerklePrefix {
+func (p *ProxyChainProver) upstreamPathEnd() *core.PathEnd {
+	return p.proxyChain.ProxyPath().UpstreamChain.Path()
+}
+
+func (p *ProxyChainProver) upstreamClientID() string {
+	return p.proxyChain.ProxyPath().UpstreamClientID
+}
+
+func (p *ProxyChainProver) upstreamPrefix() *commitmenttypes.MerklePrefix {
 	prefix := commitmenttypes.NewMerklePrefix([]byte(host.StoreKey))
 	return &prefix
 }
@@ -66,7 +74,7 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	ibcPrefix := commitmenttypes.NewMerklePrefix([]byte(host.StoreKey))
 	proxyPrefix := commitmenttypes.NewMerklePrefix([]byte(ibcproxytypes.StoreKey))
 	clientState := &proxytypes.ClientState{
-		UpstreamClientId: "", // TODO give upstreamClientID
+		UpstreamClientId: p.upstreamClientID(),
 		ProxyClientState: msg.ClientState,
 		IbcPrefix:        &ibcPrefix,
 		ProxyPrefix:      &proxyPrefix,
@@ -91,7 +99,7 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 // TODO other lightclient's methods should be also implemented
 
 func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64, upstreamClientID string) (*connectiontypes.QueryConnectionResponse, error) {
-	res, err := p.queryProxyConnection(height, p.GetUpstreamPrefix(), upstreamClientID, "TODO-connectionID-on-upstream")
+	res, err := p.queryProxyConnection(height, p.upstreamPrefix(), upstreamClientID, p.upstreamPathEnd().ConnectionID)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		return emptyConnRes, nil
 	} else if err != nil {
