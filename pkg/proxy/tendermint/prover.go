@@ -40,6 +40,7 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	if err != nil {
 		return nil, err
 	}
+	// TODO give upstreamClientID
 	clientState := proxytypes.NewClientState("", msg.ClientState)
 	anyClientState, err := clienttypes.PackClientState(clientState)
 	if err != nil {
@@ -53,6 +54,7 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	return &clienttypes.MsgCreateClient{
 		ClientState:    anyClientState,
 		ConsensusState: anyConsensusState,
+		Signer:         msg.Signer,
 	}, nil
 }
 
