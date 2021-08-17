@@ -2,6 +2,7 @@ package proxy
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	ibcproxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +19,7 @@ func (Module) Name() string {
 // RegisterInterfaces register the module interfaces to protobuf Any.
 func (Module) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	RegisterInterfaces(registry)
+	ibcproxytypes.RegisterInterfaces(registry)
 }
 
 // GetCmd returns the command

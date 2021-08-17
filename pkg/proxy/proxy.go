@@ -6,7 +6,6 @@ import (
 	connectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
-	_ "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-multiv/types"
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
 
