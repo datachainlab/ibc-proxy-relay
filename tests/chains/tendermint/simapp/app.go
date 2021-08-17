@@ -98,6 +98,8 @@ import (
 
 	mockclient "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock"
 	mockclienttypes "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock/types"
+	proxyclienttypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-proxy/types"
+	"github.com/datachainlab/ibc-proxy/modules/proxy"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -134,6 +136,7 @@ var (
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
+		proxy.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -498,7 +501,12 @@ func (app *SimApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.
 		panic(err)
 	}
 	ibcGenesisState := ibctypes.DefaultGenesisState()
-	ibcGenesisState.ClientGenesis.Params.AllowedClients = append(ibcGenesisState.ClientGenesis.Params.AllowedClients, fabrictypes.Fabric, mockclienttypes.Mock)
+	ibcGenesisState.ClientGenesis.Params.AllowedClients = append(
+		ibcGenesisState.ClientGenesis.Params.AllowedClients,
+		fabrictypes.Fabric,
+		mockclienttypes.Mock,
+		proxyclienttypes.ProxyClientType,
+	)
 	genesisState[ibc.AppModule{}.Name()] = app.appCodec.MustMarshalJSON(ibcGenesisState)
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
