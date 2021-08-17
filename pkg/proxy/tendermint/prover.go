@@ -5,9 +5,12 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
+	commitmenttypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
+	host "github.com/cosmos/ibc-go/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
 	proxytypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-proxy/types"
+	ibcproxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
@@ -40,8 +43,16 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	if err != nil {
 		return nil, err
 	}
-	// TODO give upstreamClientID
-	clientState := proxytypes.NewClientState("", msg.ClientState)
+
+	ibcPrefix := commitmenttypes.NewMerklePrefix([]byte(host.StoreKey))
+	proxyPrefix := commitmenttypes.NewMerklePrefix([]byte(ibcproxytypes.StoreKey))
+	clientState := &proxytypes.ClientState{
+		UpstreamClientId: "", // TODO give upstreamClientID
+		ProxyClientState: msg.ClientState,
+		IbcPrefix:        &ibcPrefix,
+		ProxyPrefix:      &proxyPrefix,
+		TrustedSetup:     true,
+	}
 	anyClientState, err := clienttypes.PackClientState(clientState)
 	if err != nil {
 		return nil, err
