@@ -14,10 +14,11 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/modules/core/keeper"
 	tenderminttypes "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
 	mocktypes "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock/types"
+	ibcproxykeeper "github.com/datachainlab/ibc-proxy/modules/proxy/keeper"
 )
 
 func overrideIBCClientKeeper(k ibckeeper.Keeper, cdc codec.BinaryCodec, key sdk.StoreKey, paramSpace paramtypes.Subspace) *ibckeeper.Keeper {
-	clientKeeper := NewClientKeeper(k.ClientKeeper)
+	clientKeeper := ibcproxykeeper.NewClientKeeper(NewClientKeeper(k.ClientKeeper))
 	k.ConnectionKeeper = connectionkeeper.NewKeeper(cdc, key, paramSpace, clientKeeper)
 	return &k
 }
