@@ -32,12 +32,12 @@ type ProxyPath struct {
 }
 
 type ProxyChainQueryierI interface {
-	QueryProxyClientState(height int64, upstreamClientID string) (*clienttypes.QueryClientStateResponse, error)
+	QueryProxyClientState(height int64) (*clienttypes.QueryClientStateResponse, error)
 	QueryProxyClientConsensusState(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error)
-	QueryProxyConnectionState(height int64, upstreamClientID string) (*connectiontypes.QueryConnectionResponse, error)
-	QueryProxyChannel(height int64, upstreamClientID string) (chanRes *chantypes.QueryChannelResponse, err error)
-	QueryProxyPacketCommitment(height int64, seq uint64, upstreamClientID string) (comRes *chantypes.QueryPacketCommitmentResponse, err error)
-	QueryProxyPacketAcknowledgementCommitment(height int64, seq uint64, upstreamClientID string) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error)
+	QueryProxyConnectionState(height int64) (*connectiontypes.QueryConnectionResponse, error)
+	QueryProxyChannel(height int64) (chanRes *chantypes.QueryChannelResponse, err error)
+	QueryProxyPacketCommitment(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error)
+	QueryProxyPacketAcknowledgementCommitment(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error)
 }
 
 type ProxyChainProverI interface {
@@ -46,12 +46,12 @@ type ProxyChainProverI interface {
 }
 
 type ProxyChainProverQueryierI interface {
-	QueryProxyClientStateWithProof(height int64, upstreamClientID string) (*clienttypes.QueryClientStateResponse, error)
+	QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error)
 	QueryProxyClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error)
-	QueryProxyConnectionStateWithProof(height int64, upstreamClientID string) (*connectiontypes.QueryConnectionResponse, error)
-	QueryProxyChannelWithProof(height int64, upstreamClientID string) (chanRes *chantypes.QueryChannelResponse, err error)
-	QueryProxyPacketCommitmentWithProof(height int64, seq uint64, upstreamClientID string) (comRes *chantypes.QueryPacketCommitmentResponse, err error)
-	QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64, upstreamClientID string) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error)
+	QueryProxyConnectionStateWithProof(height int64) (*connectiontypes.QueryConnectionResponse, error)
+	QueryProxyChannelWithProof(height int64) (chanRes *chantypes.QueryChannelResponse, err error)
+	QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error)
+	QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error)
 }
 
 type ProxyEventListener interface {

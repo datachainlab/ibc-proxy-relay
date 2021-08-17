@@ -39,8 +39,7 @@ func (c *TendermintProxyChain) ProxyPath() proxy.ProxyPath {
 	return c.proxyPath
 }
 
-func (c *TendermintProxyChain) QueryProxyClientState(height int64, upstreamClientID string) (*clienttypes.QueryClientStateResponse, error) {
-	// c.Client.ABCIQuery()
+func (c *TendermintProxyChain) QueryProxyClientState(height int64) (*clienttypes.QueryClientStateResponse, error) {
 	panic("not implemented error")
 }
 
@@ -48,18 +47,18 @@ func (c *TendermintProxyChain) QueryProxyClientConsensusState(height int64, dstC
 	panic("not implemented error")
 }
 
-func (c *TendermintProxyChain) QueryProxyConnectionState(height int64, upstreamClientID string) (*connectiontypes.QueryConnectionResponse, error) {
+func (c *TendermintProxyChain) QueryProxyConnectionState(height int64) (*connectiontypes.QueryConnectionResponse, error) {
 	panic("not implemented error")
 }
 
-func (c *TendermintProxyChain) QueryProxyChannel(height int64, upstreamClientID string) (chanRes *chantypes.QueryChannelResponse, err error) {
+func (c *TendermintProxyChain) QueryProxyChannel(height int64) (chanRes *chantypes.QueryChannelResponse, err error) {
 	panic("not implemented error")
 }
 
-func (c *TendermintProxyChain) QueryProxyPacketCommitment(height int64, seq uint64, upstreamClientID string) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
+func (c *TendermintProxyChain) QueryProxyPacketCommitment(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
 	panic("not implemented error")
 }
 
-func (c *TendermintProxyChain) QueryProxyPacketAcknowledgementCommitment(height int64, seq uint64, upstreamClientID string) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error) {
+func (c *TendermintProxyChain) QueryProxyPacketAcknowledgementCommitment(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error) {
 	panic("not implemented error")
 }

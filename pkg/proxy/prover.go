@@ -124,7 +124,7 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height, "TODO-upstreamClientID")
+		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
 	} else {
 		return pr.prover.QueryClientStateWithProof(height)
 	}
@@ -133,7 +133,7 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 // QueryConnectionWithProof returns the Connection and its proof
 func (pr *Prover) QueryConnectionWithProof(height int64) (*conntypes.QueryConnectionResponse, error) {
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyConnectionStateWithProof(height, "TODO-upstreamClientID")
+		return pr.upstream.Proxy.QueryProxyConnectionStateWithProof(height)
 	} else {
 		return pr.prover.QueryConnectionWithProof(height)
 	}
@@ -143,7 +143,7 @@ func (pr *Prover) QueryConnectionWithProof(height int64) (*conntypes.QueryConnec
 func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryChannelResponse, err error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyChannelWithProof(height, "TODO-upstreamClientID")
+		return pr.upstream.Proxy.QueryProxyChannelWithProof(height)
 	} else {
 		return pr.prover.QueryChannelWithProof(height)
 	}
@@ -153,7 +153,7 @@ func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryC
 func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq, "TODO-upstreamClientID")
+		return pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
 	} else {
 		return pr.prover.QueryPacketCommitmentWithProof(height, seq)
 	}
@@ -163,7 +163,7 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 func (pr *Prover) QueryPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyPacketAcknowledgementCommitmentWithProof(height, seq, "TODO-upstreamClientID")
+		return pr.upstream.Proxy.QueryProxyPacketAcknowledgementCommitmentWithProof(height, seq)
 	} else {
 		return pr.prover.QueryPacketAcknowledgementCommitmentWithProof(height, seq)
 	}

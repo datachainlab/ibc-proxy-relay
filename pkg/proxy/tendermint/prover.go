@@ -98,8 +98,8 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 
 // TODO other lightclient's methods should be also implemented
 
-func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64, upstreamClientID string) (*connectiontypes.QueryConnectionResponse, error) {
-	res, err := p.queryProxyConnection(height, p.upstreamPrefix(), upstreamClientID, p.upstreamPathEnd().ConnectionID)
+func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64) (*connectiontypes.QueryConnectionResponse, error) {
+	res, err := p.queryProxyConnection(height, p.upstreamPathEnd().ConnectionID)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		return emptyConnRes, nil
 	} else if err != nil {
@@ -108,28 +108,49 @@ func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64, upst
 	return res, nil
 }
 
-func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64, upstreamClientID string) (*clienttypes.QueryClientStateResponse, error) {
-	panic("not implemented error")
+func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
+	return p.queryProxyClientState(height, p.upstreamPathEnd().ClientID)
 }
 
 func (p *ProxyChainProver) QueryProxyClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
 	panic("not implemented error")
 }
 
-func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64, upstreamClientID string) (chanRes *channeltypes.QueryChannelResponse, err error) {
+func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64) (chanRes *channeltypes.QueryChannelResponse, err error) {
 	panic("not implemented error")
 }
 
-func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq uint64, upstreamClientID string) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {
+func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {
 	panic("not implemented error")
 }
 
-func (p *ProxyChainProver) QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64, upstreamClientID string) (ackRes *channeltypes.QueryPacketAcknowledgementResponse, err error) {
+func (p *ProxyChainProver) QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *channeltypes.QueryPacketAcknowledgementResponse, err error) {
 	panic("not implemented error")
 }
 
-func (p *ProxyChainProver) queryProxyConnection(height int64, upstreamPrefix *commitmenttypes.MerklePrefix, upstreamClientID string, connectionID string) (*connectiontypes.QueryConnectionResponse, error) {
-	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyConnectionKey(upstreamPrefix, upstreamClientID, connectionID))
+func (p *ProxyChainProver) queryProxyClientState(height int64, clientID string) (*clienttypes.QueryClientStateResponse, error) {
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyClientStateKey(p.upstreamPrefix(), p.upstreamClientID(), clientID))
+	if err != nil {
+		return nil, err
+	}
+	// check if client exists
+	if len(value) == 0 {
+		return nil, sdkerrors.Wrap(clienttypes.ErrClientNotFound, clientID)
+	}
+
+	clientState, err := clienttypes.UnmarshalClientState(p.Codec(), value)
+	if err != nil {
+		return nil, err
+	}
+	anyClientState, err := clienttypes.PackClientState(clientState)
+	if err != nil {
+		return nil, err
+	}
+	return clienttypes.NewQueryClientStateResponse(anyClientState, proof, proofHeight), nil
+}
+
+func (p *ProxyChainProver) queryProxyConnection(height int64, connectionID string) (*connectiontypes.QueryConnectionResponse, error) {
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyConnectionKey(p.upstreamPrefix(), p.upstreamClientID(), connectionID))
 	if err != nil {
 		return nil, err
 	}
