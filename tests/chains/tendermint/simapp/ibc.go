@@ -43,6 +43,6 @@ func (k ClientKeeper) ValidateSelfClient(ctx sdk.Context, clientState exported.C
 	case *mocktypes.ClientState:
 		return nil
 	default:
-		return fmt.Errorf("unexpected client state type: %T", cs)
+		return fmt.Errorf("unexpected client state type: %T %#v", cs, cs)
 	}
 }
