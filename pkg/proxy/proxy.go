@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
@@ -52,14 +51,4 @@ type ProxyChainProverQueryierI interface {
 	QueryProxyChannelWithProof(height int64) (chanRes *chantypes.QueryChannelResponse, err error)
 	QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error)
 	QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error)
-}
-
-type ProxyEventListener interface {
-	OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error
-}
-
-// TODO this interface should be merged into core.ChainI
-type ProxiableChainI interface {
-	core.ChainI
-	RegisterEventListener(ProxyEventListener)
 }

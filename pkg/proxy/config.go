@@ -23,7 +23,7 @@ func (pc ProverConfig) Build(chain core.ChainI) (core.ProverI, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewProver(NewProxiableChain(chain), prover, pc.Upstream, pc.Downstream)
+	return NewProver(chain, prover, pc.Upstream, pc.Downstream)
 }
 
 type Upstream struct {

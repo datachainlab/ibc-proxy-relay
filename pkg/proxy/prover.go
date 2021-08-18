@@ -17,18 +17,17 @@ import (
 )
 
 type Prover struct {
-	chain      ProxiableChainI
+	chain      core.ChainI
 	prover     core.ProverI
 	upstream   *Upstream
 	downstream *Downstream
 }
 
 var (
-	_ core.ProverI       = (*Prover)(nil)
-	_ ProxyEventListener = (*Prover)(nil)
+	_ core.ProverI = (*Prover)(nil)
 )
 
-func NewProver(chain ProxiableChainI, prover core.ProverI, upstreamConfig *UpstreamConfig, downstreamConfig *DownstreamConfig) (*Prover, error) {
+func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamConfig, downstreamConfig *DownstreamConfig) (*Prover, error) {
 	if upstreamConfig == nil && downstreamConfig == nil {
 		return nil, fmt.Errorf("either upstream or downstream must be not nil")
 	} else if downstreamConfig != nil {
@@ -41,7 +40,7 @@ func NewProver(chain ProxiableChainI, prover core.ProverI, upstreamConfig *Upstr
 		downstream: NewDownstream(downstreamConfig, chain),
 	}
 	if pr.upstream != nil {
-		pr.chain.RegisterEventListener(pr)
+		pr.chain.RegisterMsgEventListener(pr)
 	}
 	return pr, nil
 }

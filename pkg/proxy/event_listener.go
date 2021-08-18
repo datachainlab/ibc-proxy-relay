@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"log"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
@@ -21,10 +23,11 @@ var (
 // WARNING: This callback function calling may be skipped if the relayer is stopped for some reason.
 func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 	for _, msg := range msgs {
+		log.Printf("Called OnSentMsg: %T", msg)
 		var err error
 		switch msg := msg.(type) {
 		case *clienttypes.MsgCreateClient:
-			// nop
+			err = pr.onCreateClient(path, msg)
 		case *clienttypes.MsgUpdateClient:
 			// nop
 		case *conntypes.MsgConnectionOpenInit:
@@ -49,9 +52,37 @@ func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 			panic("not implemented error")
 		}
 		if err != nil {
+			log.Println("OnSentMsg:", err)
 			return err
 		}
 	}
+	return nil
+}
+
+func (pr *Prover) onCreateClient(path *core.PathEnd, msg *clienttypes.MsgCreateClient) error {
+
+	// 1. creates an upstream client on the proxy
+
+	header, err := pr.prover.QueryLatestHeader()
+	if err != nil {
+		return err
+	}
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	proxyMsg, err := pr.prover.CreateMsgCreateClient(pr.upstream.Proxy.ProxyPath().UpstreamClientID, header, signer)
+	if err != nil {
+		return err
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+
+	// 2. proxies the downstream client in the upstream
+
+	// TODO Is it necessary to implement proxyClientState function in the proxy module?
+
 	return nil
 }
 
