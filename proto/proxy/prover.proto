@@ -22,4 +22,8 @@ message UpstreamConfig {
 
 message DownstreamConfig {
     google.protobuf.Any proxy_chain = 1;
+    google.protobuf.Any proxy_chain_prover = 2;
+    // the client id corresponding to the upstream on the proxy machine
+    // TODO this parameter should be moved into a path configuration
+    string upstream_client_id = 3;
 }

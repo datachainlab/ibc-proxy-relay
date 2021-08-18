@@ -107,6 +107,12 @@ func (pr *Prover) onConnectionOpenInit(path *core.PathEnd, msg *conntypes.MsgCon
 		return err
 	}
 
+	log.Println("onConnectionOpenInit:", connRes.Proof, connRes.Connection)
+
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenTry{
 		ConnectionId:     path.ConnectionID,
 		UpstreamClientId: pr.upstream.UpstreamClientID,
@@ -124,6 +130,7 @@ func (pr *Prover) onConnectionOpenInit(path *core.PathEnd, msg *conntypes.MsgCon
 		ProofConsensus:  consensusRes.Proof,
 		ProofHeight:     clientRes.ProofHeight,
 		ConsensusHeight: consensusHeight.(clienttypes.Height),
+		Signer:          signer.String(),
 	}
 	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err
@@ -147,11 +154,17 @@ func (pr *Prover) onConnectionOpenTry(path *core.PathEnd, msg *conntypes.MsgConn
 	if err != nil {
 		return err
 	}
+	// TODO it should retry to query until a new block is created in the upstream
 	connRes, err := pr.prover.QueryConnectionWithProof(provableHeight)
 	if err != nil {
 		return err
 	}
+	log.Println("onConnectionOpenTry:", connRes.Proof, connRes.Connection)
 
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenAck{
 		ConnectionId:     path.ConnectionID,
 		UpstreamClientId: pr.upstream.UpstreamClientID,
@@ -169,6 +182,7 @@ func (pr *Prover) onConnectionOpenTry(path *core.PathEnd, msg *conntypes.MsgConn
 		ProofConsensus:  consensusRes.Proof,
 		ProofHeight:     clientRes.ProofHeight,
 		ConsensusHeight: consensusHeight.(clienttypes.Height),
+		Signer:          signer.String(),
 	}
 	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err
@@ -185,6 +199,11 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 	if err != nil {
 		return err
 	}
+	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
 		ConnectionId:     path.ConnectionID,
 		UpstreamClientId: pr.upstream.UpstreamClientID,
@@ -193,7 +212,7 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 			conntypes.TRYOPEN,
 			path.ClientID,
 			conntypes.Counterparty{
-				ClientId:     "", // TODO fix to remove this
+				ClientId:     "", // TODO query the previous connection state and set this field to the value
 				ConnectionId: msg.CounterpartyConnectionId,
 				Prefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			},
@@ -201,6 +220,7 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 		),
 		ProofAck:    connRes.Proof,
 		ProofHeight: connRes.ProofHeight,
+		Signer:      signer.String(),
 	}
 	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err

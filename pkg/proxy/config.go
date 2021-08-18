@@ -54,7 +54,9 @@ func NewUpstream(config *UpstreamConfig, chain core.ChainI) *Upstream {
 }
 
 type Downstream struct {
-	ProxyChain core.ChainI
+	ProxyChain       ProxyChainI
+	ProxyChainProver ProxyChainProverI
+	UpstreamClientID string
 }
 
 func NewDownstream(config *DownstreamConfig, chain core.ChainI) *Downstream {
@@ -65,8 +67,14 @@ func NewDownstream(config *DownstreamConfig, chain core.ChainI) *Downstream {
 	if err != nil {
 		panic(err)
 	}
+	proxyChainProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
+	if err != nil {
+		panic(err)
+	}
 	return &Downstream{
-		ProxyChain: proxyChain,
+		ProxyChain:       proxyChain,
+		ProxyChainProver: proxyChainProver,
+		UpstreamClientID: config.UpstreamClientId,
 	}
 }
 
@@ -106,6 +114,9 @@ func (cfg *DownstreamConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) e
 		return nil
 	}
 	if err := unpacker.UnpackAny(cfg.ProxyChain, new(ProxyChainConfigI)); err != nil {
+		return err
+	}
+	if err := unpacker.UnpackAny(cfg.ProxyChainProver, new(ProxyChainProverConfigI)); err != nil {
 		return err
 	}
 	return nil

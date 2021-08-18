@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
@@ -42,7 +43,27 @@ func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamC
 		downstream: NewDownstream(downstreamConfig, chain),
 	}
 	if pr.upstream != nil {
+		pr.upstream.Proxy.SetPath(&core.PathEnd{
+			ChainID:      pr.upstream.Proxy.ChainID(),
+			ClientID:     pr.upstream.UpstreamClientID,
+			ConnectionID: "connection-0",
+			ChannelID:    "channel-0",
+			PortID:       "transfer",
+			Order:        "unordered",
+			Version:      "ics20-1",
+		})
 		pr.chain.RegisterMsgEventListener(pr)
+	}
+	if pr.downstream != nil {
+		pr.downstream.ProxyChain.SetPath(&core.PathEnd{
+			ChainID:      pr.downstream.ProxyChain.ChainID(),
+			ClientID:     pr.downstream.UpstreamClientID,
+			ConnectionID: "connection-0",
+			ChannelID:    "channel-0",
+			PortID:       "transfer",
+			Order:        "unordered",
+			Version:      "ics20-1",
+		})
 	}
 	return pr, nil
 }
@@ -126,7 +147,46 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 		}
 		return nil, err
 	} else {
-		return pr.prover.QueryClientConsensusStateWithProof(height, dstClientConsHeight)
+		// in case we are downstream:
+
+		clientRes, err := pr.prover.QueryClientStateWithProof(height)
+		if err != nil {
+			return nil, err
+		}
+		proxyClientState, err := clienttypes.UnpackClientState(clientRes.ClientState)
+		if err != nil {
+			return nil, err
+		}
+		consRes, err := pr.prover.QueryClientConsensusStateWithProof(height, proxyClientState.GetLatestHeight())
+		if err != nil {
+			return nil, err
+		}
+		head := &multivtypes.BranchProof{
+			ClientProof:     clientRes.Proof,
+			ClientState:     clientRes.ClientState,
+			ConsensusProof:  consRes.Proof,
+			ConsensusState:  consRes.ConsensusState,
+			ProofHeight:     clientRes.ProofHeight,
+			ConsensusHeight: proxyClientState.GetLatestHeight().(clienttypes.Height),
+		}
+		proxyConsRes, err := pr.downstream.ProxyChainProver.QueryClientConsensusStateWithProof(
+			int64(proxyClientState.GetLatestHeight().GetRevisionHeight()-1),
+			dstClientConsHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		leafClient := &multivtypes.LeafConsensusProof{
+			Proof:       proxyConsRes.Proof,
+			ProofHeight: proxyConsRes.ProofHeight,
+			// TODO: I realized that `consensusHeight` need not to be kept here. Instead, it can use a consensusHeight of MsgConnOpen*.
+			ConsensusHeight: dstClientConsHeight.(clienttypes.Height),
+		}
+		proof, err := pr.makeMultiVConsensusStateProof(leafClient, head)
+		if err != nil {
+			return nil, err
+		}
+		return clienttypes.NewQueryConsensusStateResponse(proxyConsRes.ConsensusState, proof, dstClientConsHeight.(clienttypes.Height)), nil
 	}
 }
 
@@ -145,8 +205,91 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 		}
 		return nil, err
 	} else {
-		return pr.prover.QueryClientStateWithProof(height)
+		// in case we are downstream:
+
+		// down-(head)>proxy-(leaf)>upstream
+
+		clientRes, err := pr.prover.QueryClientStateWithProof(height)
+		if err != nil {
+			return nil, err
+		}
+		proxyClientState, err := clienttypes.UnpackClientState(clientRes.ClientState)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Downstream found: ClientState: %#v %v,%v", proxyClientState, height, proxyClientState.GetLatestHeight())
+		consRes, err := pr.prover.QueryClientConsensusStateWithProof(height, proxyClientState.GetLatestHeight())
+		if err != nil {
+			return nil, err
+		}
+		head := &multivtypes.BranchProof{
+			ClientProof:     clientRes.Proof,
+			ClientState:     clientRes.ClientState,
+			ConsensusProof:  consRes.Proof,
+			ConsensusState:  consRes.ConsensusState,
+			ProofHeight:     clientRes.ProofHeight,
+			ConsensusHeight: proxyClientState.GetLatestHeight().(clienttypes.Height),
+		}
+		// TODO (height-1) is for tendermint specific
+		proxyClientRes, err := pr.downstream.ProxyChainProver.QueryClientStateWithProof(int64(proxyClientState.GetLatestHeight().GetRevisionHeight() - 1))
+		if err != nil {
+			return nil, err
+		}
+		leafClient := &multivtypes.LeafClientProof{
+			Proof:       proxyClientRes.Proof,
+			ProofHeight: proxyClientRes.ProofHeight,
+		}
+		proof, err := pr.makeMultiVClientStateProof(leafClient, head)
+		if err != nil {
+			return nil, err
+		}
+		log.Println("NewQueryClientStateResponse:", proxyClientState.GetLatestHeight().(clienttypes.Height), proxyClientRes.ProofHeight)
+		return clienttypes.NewQueryClientStateResponse(proxyClientRes.ClientState, proof, clientRes.ProofHeight), nil
 	}
+}
+
+func (pr *Prover) makeMultiVClientStateProof(
+	leafClient *multivtypes.LeafClientProof,
+	branches ...*multivtypes.BranchProof,
+) ([]byte, error) {
+	var mp multivtypes.MultiProof
+
+	for _, branch := range branches {
+		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
+			Proof: &multivtypes.Proof_Branch{Branch: branch},
+		})
+	}
+	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
+		Proof: &multivtypes.Proof_LeafClient{LeafClient: leafClient},
+	})
+
+	any, err := codectypes.NewAnyWithValue(&mp)
+	if err != nil {
+		return nil, err
+	}
+	return pr.chain.Codec().Marshal(any)
+}
+
+func (pr *Prover) makeMultiVConsensusStateProof(
+	leafConsensus *multivtypes.LeafConsensusProof,
+	branches ...*multivtypes.BranchProof,
+) ([]byte, error) {
+	var mp multivtypes.MultiProof
+
+	for _, branch := range branches {
+		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
+			Proof: &multivtypes.Proof_Branch{Branch: branch},
+		})
+	}
+	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
+		Proof: &multivtypes.Proof_LeafConsensus{LeafConsensus: leafConsensus},
+	})
+
+	any, err := codectypes.NewAnyWithValue(&mp)
+	if err != nil {
+		return nil, err
+	}
+	return pr.chain.Codec().Marshal(any)
 }
 
 // QueryConnectionWithProof returns the Connection and its proof
