@@ -98,6 +98,14 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 
 // TODO other lightclient's methods should be also implemented
 
+func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
+	return p.queryProxyClientState(height, p.upstreamPathEnd().ClientID)
+}
+
+func (p *ProxyChainProver) QueryProxyClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
+	return p.queryProxyClientConsensusState(height, p.upstreamPathEnd().ClientID, dstClientConsHeight)
+}
+
 func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64) (*connectiontypes.QueryConnectionResponse, error) {
 	res, err := p.queryProxyConnection(height, p.upstreamPathEnd().ConnectionID)
 	if err != nil && strings.Contains(err.Error(), "not found") {
@@ -106,14 +114,6 @@ func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64) (*co
 		return nil, err
 	}
 	return res, nil
-}
-
-func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
-	return p.queryProxyClientState(height, p.upstreamPathEnd().ClientID)
-}
-
-func (p *ProxyChainProver) QueryProxyClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
-	panic("not implemented error")
 }
 
 func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64) (chanRes *channeltypes.QueryChannelResponse, err error) {
@@ -126,6 +126,27 @@ func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq
 
 func (p *ProxyChainProver) QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *channeltypes.QueryPacketAcknowledgementResponse, err error) {
 	panic("not implemented error")
+}
+
+func (p *ProxyChainProver) queryProxyClientConsensusState(height int64, clientID string, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyConsensusStateKey(p.upstreamPrefix(), p.upstreamClientID(), clientID, dstClientConsHeight))
+	if err != nil {
+		return nil, err
+	}
+	// check if client consensus exists
+	if len(value) == 0 {
+		return nil, sdkerrors.Wrap(clienttypes.ErrClientNotFound, clientID)
+	}
+
+	consensusState, err := clienttypes.UnmarshalConsensusState(p.Codec(), value)
+	if err != nil {
+		return nil, err
+	}
+	anyConsensusState, err := clienttypes.PackConsensusState(consensusState)
+	if err != nil {
+		return nil, err
+	}
+	return clienttypes.NewQueryConsensusStateResponse(anyConsensusState, proof, proofHeight), nil
 }
 
 func (p *ProxyChainProver) queryProxyClientState(height int64, clientID string) (*clienttypes.QueryClientStateResponse, error) {

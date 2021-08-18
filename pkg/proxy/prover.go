@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -113,7 +115,16 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
+		res, err := pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
+		if err == nil {
+			return res, nil
+		}
+		// NOTE fallback to the upstream queryier
+		if strings.Contains(err.Error(), "light client not found") {
+			log.Println("QueryClientConsensusStateWithProof: switch to upstream querier:", err)
+			return pr.chain.QueryClientConsensusState(0, dstClientConsHeight)
+		}
+		return nil, err
 	} else {
 		return pr.prover.QueryClientConsensusStateWithProof(height, dstClientConsHeight)
 	}
@@ -123,7 +134,16 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
+		res, err := pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
+		if err == nil {
+			return res, nil
+		}
+		// NOTE fallback to the upstream queryier
+		if strings.Contains(err.Error(), "light client not found") {
+			log.Println("QueryClientStateWithProof: switch to upstream querier:", err)
+			return pr.chain.QueryClientState(0)
+		}
+		return nil, err
 	} else {
 		return pr.prover.QueryClientStateWithProof(height)
 	}
