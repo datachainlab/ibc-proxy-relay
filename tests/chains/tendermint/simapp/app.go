@@ -311,7 +311,7 @@ func NewSimApp(
 	)
 	app.IBCKeeper = overrideIBCClientKeeper(*ibcKeeper, appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName))
 	app.IBCProxyKeeper = ibcproxykeeper.NewKeeper(
-		appCodec, keys[ibcproxytypes.StoreKey], keys[ibchost.StoreKey], false, app.IBCKeeper.ClientKeeper, app.IBCKeeper.ConnectionKeeper, app.IBCKeeper.ChannelKeeper, scopedIBCProxyKeeper, &app.IBCKeeper.PortKeeper,
+		appCodec, keys[ibcproxytypes.StoreKey], keys[ibchost.StoreKey], true, app.IBCKeeper.ClientKeeper, app.IBCKeeper.ConnectionKeeper, app.IBCKeeper.ChannelKeeper, scopedIBCProxyKeeper, &app.IBCKeeper.PortKeeper,
 	)
 	proxyModule := ibcproxy.NewAppModule(app.IBCProxyKeeper)
 	// register the proposal types
