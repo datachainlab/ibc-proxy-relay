@@ -26,7 +26,6 @@ var (
 // WARNING: This callback function calling may be skipped if the relayer is stopped for some reason.
 func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 	for _, msg := range msgs {
-		log.Printf("Called OnSentMsg: %T", msg)
 		var err error
 		switch msg := msg.(type) {
 		case *clienttypes.MsgCreateClient:
@@ -52,10 +51,10 @@ func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 		case *chantypes.MsgRecvPacket:
 			err = pr.onRecvPacket(path, msg)
 		case *chantypes.MsgAcknowledgement:
-			panic("not implemented error")
+			// nop
 		}
 		if err != nil {
-			log.Println("OnSentMsg:", err)
+			log.Println("failed to OnSentMsg:", err)
 			return err
 		}
 	}
