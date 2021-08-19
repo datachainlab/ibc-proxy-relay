@@ -317,47 +317,44 @@ func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryC
 func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		// TODO refactoring
-		for {
-			res, err := pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
-			if err == nil {
-				return res, nil
-			} else if !strings.Contains(err.Error(), "packet commitment not found") {
-				return nil, err
-			}
-			provableHeight, err := pr.updateProxyUpstreamClient()
-			if err != nil {
-				return nil, err
-			}
-			pcRes, err := pr.prover.QueryPacketCommitmentWithProof(provableHeight, seq)
-			if err != nil {
-				return nil, err
-			}
-			packet, err := pr.chain.QueryPacket(provableHeight, seq)
-			if err != nil {
-				return nil, err
-			}
-			signer, err := pr.upstream.Proxy.GetAddress()
-			if err != nil {
-				return nil, err
-			}
-			proxyMsg := &proxytypes.MsgProxyRecvPacket{
-				UpstreamClientId: pr.upstream.UpstreamClientID,
-				UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-				Packet:           *packet,
-				Proof:            pcRes.Proof,
-				ProofHeight:      pcRes.ProofHeight,
-				Signer:           signer.String(),
-			}
-			if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
-				return nil, err
-			}
-			// NOTE update the requested height with a new block height that keeps the packet commitment
-			height, err = pr.upstream.Proxy.GetLatestHeight()
-			if err != nil {
-				return nil, err
-			}
+		// first, query a packet commitment to the proxy
+		// if the commitment exists, just returns it
+		// otherwise, the proxy proxies the commitment
+		res, err := pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
+		if err == nil {
+			return res, nil
+		} else if !strings.Contains(err.Error(), "packet commitment not found") {
+			return nil, err
 		}
+		log.Println("try to perform a relay `upstream->proxy`")
+		provableHeight, err := pr.updateProxyUpstreamClient()
+		if err != nil {
+			return nil, err
+		}
+		pcRes, err := pr.prover.QueryPacketCommitmentWithProof(provableHeight, seq)
+		if err != nil {
+			return nil, err
+		}
+		packet, err := pr.chain.QueryPacket(provableHeight, seq)
+		if err != nil {
+			return nil, err
+		}
+		signer, err := pr.upstream.Proxy.GetAddress()
+		if err != nil {
+			return nil, err
+		}
+		proxyMsg := &proxytypes.MsgProxyRecvPacket{
+			UpstreamClientId: pr.upstream.UpstreamClientID,
+			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			Packet:           *packet,
+			Proof:            pcRes.Proof,
+			ProofHeight:      pcRes.ProofHeight,
+			Signer:           signer.String(),
+		}
+		if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("the relay `upstream->proxy` succeeded, but you also need to do a another relay `proxy->downstream")
 	} else {
 		return pr.prover.QueryPacketCommitmentWithProof(height, seq)
 	}
