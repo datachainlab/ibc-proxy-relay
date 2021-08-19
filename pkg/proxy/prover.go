@@ -354,7 +354,7 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 		if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("the relay `upstream->proxy` succeeded, but you also need to do a another relay `proxy->downstream")
+		return nil, fmt.Errorf("the relay `upstream->proxy` succeeded, but you need to update the proxy client in the downstream and call `QueryPacketCommitmentWithProof` again")
 	} else {
 		return pr.prover.QueryPacketCommitmentWithProof(height, seq)
 	}
