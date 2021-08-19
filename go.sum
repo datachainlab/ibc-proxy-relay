@@ -184,6 +184,8 @@ github.com/datachainlab/ibc-go v0.0.0-20210623043207-6582d8c965f8/go.mod h1:NU4I
 github.com/datachainlab/ibc-mock-client v0.0.0-20210801010718-05f8b1087574/go.mod h1:yz5E2DpB3FJZZjagC4HcW51km5HesF1tFQRr6k0HQvA=
 github.com/datachainlab/ibc-proxy v0.0.0-20210817061724-b4e87627b829 h1:FVtVw0Hd1oJxPgeEUOpmSGFwORbZId6TwiAwCo4XZso=
 github.com/datachainlab/ibc-proxy v0.0.0-20210817061724-b4e87627b829/go.mod h1:Eqx5w/EOmfpBjZluuaD+P8tDxHCKSyU725giZfvMjpY=
+github.com/datachainlab/ibc-proxy v0.0.0-20210819061801-ebe2656b6d6e h1:rg5nXL4UFFdVUGbYlQWTPmZejpMWBrkK8cwVRyzGoNY=
+github.com/datachainlab/ibc-proxy v0.0.0-20210819061801-ebe2656b6d6e/go.mod h1:Eqx5w/EOmfpBjZluuaD+P8tDxHCKSyU725giZfvMjpY=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
