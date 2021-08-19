@@ -217,7 +217,6 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Downstream found: ClientState: %#v %v,%v", proxyClientState, height, proxyClientState.GetLatestHeight())
 		consRes, err := pr.prover.QueryClientConsensusStateWithProof(height, proxyClientState.GetLatestHeight())
 		if err != nil {
 			return nil, err

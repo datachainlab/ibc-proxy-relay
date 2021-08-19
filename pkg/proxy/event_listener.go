@@ -3,7 +3,9 @@ package proxy
 import (
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/avast/retry-go"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
@@ -48,7 +50,7 @@ func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 		case *chantypes.MsgChannelOpenConfirm:
 			// nop
 		case *chantypes.MsgRecvPacket:
-			panic("not implemented error")
+			err = pr.onRecvPacket(path, msg)
 		case *chantypes.MsgAcknowledgement:
 			panic("not implemented error")
 		}
@@ -267,6 +269,53 @@ func (pr *Prover) onChannelOpenTry(path *core.PathEnd, msg *chantypes.MsgChannel
 		ProofTry:            chanRes.Proof,
 		ProofHeight:         chanRes.ProofHeight,
 		Signer:              signer.String(),
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *Prover) onRecvPacket(path *core.PathEnd, msg *chantypes.MsgRecvPacket) error {
+	var (
+		provableHeight int64
+		res            *chantypes.QueryPacketAcknowledgementResponse
+	)
+
+	err := retry.Do(
+		func() error {
+			var err error
+			provableHeight, err = pr.updateProxyUpstreamClient()
+			if err != nil {
+				return err
+			}
+			res, err = pr.prover.QueryPacketAcknowledgementCommitmentWithProof(provableHeight, msg.Packet.Sequence)
+			return err
+		},
+		retry.Delay(1*time.Second),
+		retry.Attempts(30),
+	)
+	if err != nil {
+		return err
+	}
+	log.Println("onRecvPacket:", res.Proof, res.Acknowledgement)
+
+	ack, err := pr.chain.QueryPacketAcknowledgement(provableHeight, msg.Packet.Sequence)
+	if err != nil {
+		return err
+	}
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	proxyMsg := &proxytypes.MsgProxyAcknowledgePacket{
+		UpstreamClientId: pr.upstream.UpstreamClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		Packet:           msg.Packet,
+		Acknowledgement:  ack,
+		Proof:            res.Proof,
+		ProofHeight:      res.ProofHeight,
+		Signer:           signer.String(),
 	}
 	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err
