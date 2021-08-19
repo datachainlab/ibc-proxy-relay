@@ -96,8 +96,6 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	}, nil
 }
 
-// TODO other lightclient's methods should be also implemented
-
 func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
 	return p.queryProxyClientState(height, p.upstreamPathEnd().ClientID)
 }
@@ -127,11 +125,27 @@ func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64) (chanRes *ch
 }
 
 func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {
-	panic("not implemented error")
+	portID, channelID := p.upstreamPathEnd().PortID, p.upstreamPathEnd().ChannelID
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyPacketCommitmentKey(p.upstreamPrefix(), p.upstreamClientID(), portID, channelID, seq))
+	if err != nil {
+		return nil, err
+	}
+	if len(value) == 0 {
+		return nil, sdkerrors.Wrapf(channeltypes.ErrPacketCommitmentNotFound, "portID=%v channelID=%v sequence=%v", portID, channelID, seq)
+	}
+	return channeltypes.NewQueryPacketCommitmentResponse(value, proof, proofHeight), nil
 }
 
 func (p *ProxyChainProver) QueryProxyPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *channeltypes.QueryPacketAcknowledgementResponse, err error) {
-	return p.queryProxyAcknowledgementCommitment(height, p.upstreamPathEnd().PortID, p.upstreamPathEnd().ChannelID, seq)
+	portID, channelID := p.upstreamPathEnd().PortID, p.upstreamPathEnd().ChannelID
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyAcknowledgementKey(p.upstreamPrefix(), p.upstreamClientID(), portID, channelID, seq))
+	if err != nil {
+		return nil, err
+	}
+	if len(value) == 0 {
+		return nil, sdkerrors.Wrapf(channeltypes.ErrAcknowledgementExists, "portID=%v channelID=%v sequence=%v", portID, channelID, seq)
+	}
+	return channeltypes.NewQueryPacketAcknowledgementResponse(value, proof, proofHeight), nil
 }
 
 func (p *ProxyChainProver) queryProxyClientConsensusState(height int64, clientID string, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
@@ -208,17 +222,6 @@ func (p *ProxyChainProver) queryProxyChannel(height int64, portID string, channe
 		return nil, err
 	}
 	return channeltypes.NewQueryChannelResponse(channel, proof, proofHeight), nil
-}
-
-func (p *ProxyChainProver) queryProxyAcknowledgementCommitment(height int64, portID string, channelID string, sequence uint64) (*channeltypes.QueryPacketAcknowledgementResponse, error) {
-	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyAcknowledgementKey(p.upstreamPrefix(), p.upstreamClientID(), portID, channelID, sequence))
-	if err != nil {
-		return nil, err
-	}
-	if len(value) == 0 {
-		return nil, sdkerrors.Wrapf(channeltypes.ErrAcknowledgementExists, "portID=%v channelID=%v sequence=%v", portID, channelID, sequence)
-	}
-	return channeltypes.NewQueryPacketAcknowledgementResponse(value, proof, proofHeight), nil
 }
 
 func (p *ProxyChainProver) queryProxy(height int64, key []byte) (value []byte, proof []byte, proofHeight clienttypes.Height, err error) {

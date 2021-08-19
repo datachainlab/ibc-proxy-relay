@@ -12,8 +12,11 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
+	commitmenttypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
+	host "github.com/cosmos/ibc-go/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 	multivtypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-multiv/types"
+	proxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/spf13/viper"
 
 	"github.com/hyperledger-labs/yui-relayer/core"
@@ -314,7 +317,47 @@ func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryC
 func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
+		// TODO refactoring
+		for {
+			res, err := pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
+			if err == nil {
+				return res, nil
+			} else if !strings.Contains(err.Error(), "packet commitment not found") {
+				return nil, err
+			}
+			provableHeight, err := pr.updateProxyUpstreamClient()
+			if err != nil {
+				return nil, err
+			}
+			pcRes, err := pr.prover.QueryPacketCommitmentWithProof(provableHeight, seq)
+			if err != nil {
+				return nil, err
+			}
+			packet, err := pr.chain.QueryPacket(provableHeight, seq)
+			if err != nil {
+				return nil, err
+			}
+			signer, err := pr.upstream.Proxy.GetAddress()
+			if err != nil {
+				return nil, err
+			}
+			proxyMsg := &proxytypes.MsgProxyRecvPacket{
+				UpstreamClientId: pr.upstream.UpstreamClientID,
+				UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+				Packet:           *packet,
+				Proof:            pcRes.Proof,
+				ProofHeight:      pcRes.ProofHeight,
+				Signer:           signer.String(),
+			}
+			if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+				return nil, err
+			}
+			// NOTE update the requested height with a new block height that keeps the packet commitment
+			height, err = pr.upstream.Proxy.GetLatestHeight()
+			if err != nil {
+				return nil, err
+			}
+		}
 	} else {
 		return pr.prover.QueryPacketCommitmentWithProof(height, seq)
 	}
