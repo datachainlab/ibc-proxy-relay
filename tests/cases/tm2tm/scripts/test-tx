@@ -26,3 +26,21 @@ sleep ${TX_INTERNAL}
 
 echo "After ibc0 balance: $(${RLY} query balance ibc0 ${TM_ADDRESS0})"
 echo "After ibc1 balance: $(${RLY} query balance ibc1 ${TM_ADDRESS1})"
+
+echo "!!! ibc1 -> ibc0 !!!"
+
+${RLY} tx transfer ibc01 ibc1 ibc0 100samoleans ${TM_ADDRESS1}
+sleep ${TX_INTERNAL}
+set +e
+# it performs a relay `upstream->proxy`, but `QueryPacketCommitmentWithProof` returns an error
+${RLY} tx relay ibc01
+sleep ${TX_INTERNAL}
+set -e
+# it performs a relay `proxy->downstream`
+${RLY} tx relay ibc01
+sleep ${TX_INTERNAL}
+${RLY} tx acks ibc01
+sleep ${TX_INTERNAL}
+
+echo "After ibc0 balance: $(${RLY} query balance ibc0 ${TM_ADDRESS0})"
+echo "After ibc1 balance: $(${RLY} query balance ibc1 ${TM_ADDRESS1})"
