@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"log"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -41,7 +42,7 @@ func (pr *Prover) OnSentMsg(path *core.PathEnd, msgs []sdk.Msg) error {
 		case *chantypes.MsgChannelOpenInit:
 			panic("not implemented error")
 		case *chantypes.MsgChannelOpenTry:
-			panic("not implemented error")
+			err = pr.onChannelOpenTry(path, msg)
 		case *chantypes.MsgChannelOpenAck:
 			panic("not implemented error")
 		case *chantypes.MsgChannelOpenConfirm:
@@ -106,8 +107,10 @@ func (pr *Prover) onConnectionOpenInit(path *core.PathEnd, msg *conntypes.MsgCon
 	if err != nil {
 		return err
 	}
-
 	log.Println("onConnectionOpenInit:", connRes.Proof, connRes.Connection)
+	if len(connRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
+	}
 
 	signer, err := pr.upstream.Proxy.GetAddress()
 	if err != nil {
@@ -160,6 +163,9 @@ func (pr *Prover) onConnectionOpenTry(path *core.PathEnd, msg *conntypes.MsgConn
 		return err
 	}
 	log.Println("onConnectionOpenTry:", connRes.Proof, connRes.Connection)
+	if len(connRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
+	}
 
 	signer, err := pr.upstream.Proxy.GetAddress()
 	if err != nil {
@@ -200,6 +206,9 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 		return err
 	}
 	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
+	if len(connRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
+	}
 	signer, err := pr.upstream.Proxy.GetAddress()
 	if err != nil {
 		return err
@@ -209,7 +218,7 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 		UpstreamClientId: pr.upstream.UpstreamClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Connection: conntypes.NewConnectionEnd(
-			conntypes.TRYOPEN,
+			conntypes.OPEN,
 			path.ClientID,
 			conntypes.Counterparty{
 				ClientId:     "", // TODO query the previous connection state and set this field to the value
@@ -221,6 +230,43 @@ func (pr *Prover) onConnectionOpenAck(path *core.PathEnd, msg *conntypes.MsgConn
 		ProofAck:    connRes.Proof,
 		ProofHeight: connRes.ProofHeight,
 		Signer:      signer.String(),
+	}
+	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *Prover) onChannelOpenTry(path *core.PathEnd, msg *chantypes.MsgChannelOpenTry) error {
+	provableHeight, err := pr.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	chanRes, err := pr.prover.QueryChannelWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	log.Println("onChannelOpenTry:", chanRes.Proof, chanRes.Channel)
+	if len(chanRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
+	}
+	signer, err := pr.upstream.Proxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	proxyMsg := &proxytypes.MsgProxyChannelOpenAck{
+		UpstreamClientId:    pr.upstream.UpstreamClientID,
+		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		Order:               chanRes.Channel.Ordering,
+		ConnectionHops:      chanRes.Channel.ConnectionHops,
+		PortId:              path.PortID,
+		ChannelId:           path.ChannelID,
+		Counterparty:        chanRes.Channel.Counterparty,
+		Version:             chanRes.Channel.Version,
+		CounterpartyVersion: chanRes.Channel.Version, // TODO this field must be the version that is provided by counterparty chain
+		ProofTry:            chanRes.Proof,
+		ProofHeight:         chanRes.ProofHeight,
+		Signer:              signer.String(),
 	}
 	if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err

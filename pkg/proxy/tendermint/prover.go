@@ -117,7 +117,13 @@ func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64) (*co
 }
 
 func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64) (chanRes *channeltypes.QueryChannelResponse, err error) {
-	panic("not implemented error")
+	res, err := p.queryProxyChannel(height, p.upstreamPathEnd().PortID, p.upstreamPathEnd().ChannelID)
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		return emptyChannelRes, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {
@@ -185,6 +191,23 @@ func (p *ProxyChainProver) queryProxyConnection(height int64, connectionID strin
 		return nil, err
 	}
 	return connectiontypes.NewQueryConnectionResponse(connection, proof, proofHeight), nil
+}
+
+func (p *ProxyChainProver) queryProxyChannel(height int64, portID string, channelID string) (*channeltypes.QueryChannelResponse, error) {
+	value, proof, proofHeight, err := p.queryProxy(height, ibcproxytypes.ProxyChannelKey(p.upstreamPrefix(), p.upstreamClientID(), portID, channelID))
+	if err != nil {
+		return nil, err
+	}
+	// check if channel exists
+	if len(value) == 0 {
+		return nil, sdkerrors.Wrapf(channeltypes.ErrChannelNotFound, "portID=%v channelID=%v", portID, channelID)
+	}
+
+	var channel channeltypes.Channel
+	if err := p.Codec().Unmarshal(value, &channel); err != nil {
+		return nil, err
+	}
+	return channeltypes.NewQueryChannelResponse(channel, proof, proofHeight), nil
 }
 
 func (p *ProxyChainProver) queryProxy(height int64, key []byte) (value []byte, proof []byte, proofHeight clienttypes.Height, err error) {
