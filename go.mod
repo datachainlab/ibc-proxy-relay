@@ -16,7 +16,7 @@ require (
 	github.com/cosmos/ibc-go v1.0.0-beta1
 	github.com/datachainlab/ibc-proxy v0.0.0-20210819061801-ebe2656b6d6e
 	github.com/gogo/protobuf v1.3.3
-	github.com/hyperledger-labs/yui-relayer v0.1.1-0.20210818033701-ef1f6d422958
+	github.com/hyperledger-labs/yui-relayer v0.1.1-0.20210820091912-cbd816e8ba9e
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/tendermint/tendermint v0.34.10
