@@ -332,15 +332,17 @@ func (pr *Prover) updateProxyUpstreamClient() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	addr, err := pr.upstream.Proxy.GetAddress()
-	if err != nil {
-		return 0, err
-	}
-	_, err = pr.upstream.Proxy.SendMsgs(
-		[]sdk.Msg{pr.upstream.Proxy.Path().UpdateClient(header, addr)},
-	)
-	if err != nil {
-		return 0, err
+	if header != nil {
+		addr, err := pr.upstream.Proxy.GetAddress()
+		if err != nil {
+			return 0, err
+		}
+		_, err = pr.upstream.Proxy.SendMsgs(
+			[]sdk.Msg{pr.upstream.Proxy.Path().UpdateClient(header, addr)},
+		)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return provableHeight, nil
 }
