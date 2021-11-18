@@ -105,7 +105,15 @@ func updateLightCmd(ctx *config.Context) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			prover := c.ProverI.(*proxy.Prover).GetUnderlyingProver().(*tendermint.Prover)
+			var prover *tendermint.Prover
+			switch p := c.ProverI.(type) {
+			case *proxy.Prover:
+				prover = p.GetUnderlyingProver().(*tendermint.Prover)
+			case *tendermint.Prover:
+				prover = p
+			default:
+				return fmt.Errorf("unexpected type: %T", p)
+			}
 
 			bh, err := prover.GetLatestLightHeader()
 			if err != nil {

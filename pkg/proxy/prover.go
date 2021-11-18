@@ -139,16 +139,7 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		res, err := pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
-		if err == nil {
-			return res, nil
-		}
-		// NOTE fallback to the upstream queryier
-		if strings.Contains(err.Error(), "light client not found") {
-			log.Println("QueryClientConsensusStateWithProof: switch to upstream querier:", err)
-			return pr.chain.QueryClientConsensusState(0, dstClientConsHeight)
-		}
-		return nil, err
+		return pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
 	} else {
 		// in case we are downstream:
 
@@ -197,16 +188,7 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
 	pr.xxxInitChains()
 	if pr.upstream != nil {
-		res, err := pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
-		if err == nil {
-			return res, nil
-		}
-		// NOTE fallback to the upstream queryier
-		if strings.Contains(err.Error(), "light client not found") {
-			log.Println("QueryClientStateWithProof: switch to upstream querier:", err)
-			return pr.chain.QueryClientState(0)
-		}
-		return nil, err
+		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
 	} else {
 		// in case we are downstream:
 
@@ -245,7 +227,6 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 		if err != nil {
 			return nil, err
 		}
-		log.Println("NewQueryClientStateResponse:", proxyClientState.GetLatestHeight().(clienttypes.Height), proxyClientRes.ProofHeight)
 		return clienttypes.NewQueryClientStateResponse(proxyClientRes.ClientState, proof, clientRes.ProofHeight), nil
 	}
 }

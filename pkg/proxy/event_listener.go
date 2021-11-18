@@ -333,6 +333,9 @@ func (pr *Prover) updateProxyUpstreamClient() (int64, error) {
 		return 0, err
 	}
 	if header != nil {
+		if err := header.ValidateBasic(); err != nil {
+			return 0, err
+		}
 		addr, err := pr.upstream.Proxy.GetAddress()
 		if err != nil {
 			return 0, err
