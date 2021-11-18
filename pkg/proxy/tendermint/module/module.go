@@ -1,8 +1,9 @@
-package tendermint
+package module
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
+	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy/tendermint"
 	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy/tendermint/cmd"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"
@@ -21,11 +22,11 @@ func (m Module) Name() string {
 func (m Module) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations(
 		(*proxy.ProxyChainConfigI)(nil),
-		&ProxyChainConfig{},
+		&tendermint.ProxyChainConfig{},
 	)
 	registry.RegisterImplementations(
 		(*proxy.ProxyChainProverConfigI)(nil),
-		&ProxyChainProverConfig{},
+		&tendermint.ProxyChainProverConfig{},
 	)
 }
 
