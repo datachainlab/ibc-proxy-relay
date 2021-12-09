@@ -58,4 +58,33 @@ jobs:
         if: steps.cache-docker-tendermint.outputs.cache-hit != 'true'
         working-directory: ./tests/scripts
         run: |
-          ./save_docker_images $CACHE_DOCKER_TENDERMINT_DIR tendermint-chain0:latest tendermint-chain1:latest
+          ./save_docker_images $CACHE_DOCKER_TENDERMINT_DIR tendermint-chain0:latest tendermint-chain1:latest tendermint-proxy0:latest
+
+  tm2tm-test:
+    name: tm2tm-test
+    runs-on: ubuntu-20.04
+    needs:
+      - relayer-build
+      - tendermint-build
+    steps:
+      - uses: actions/checkout@v2
+      - name: Restore relayer binary cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_BIN_RELAYER_PATH }}
+          key: ${{ runner.os }}-${{ env.CACHE_BIN_RELAYER_KEY }}-${{ github.sha }}
+      - name: Restore Tendermint docker image cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DOCKER_TENDERMINT_DIR }}
+          key: ${{ runner.os }}-${{ env.CACHE_DOCKER_TENDERMINT_KEY }}-${{ hashFiles('tests/chains/tendermint/**', '!**/.git/**') }}
+      - name: Load Tendermint docker images
+        working-directory: ./tests/scripts
+        run: |
+          ./load_docker_images $CACHE_DOCKER_TENDERMINT_DIR tendermint-chain0:latest tendermint-chain1:latest tendermint-proxy0:latest
+      - name: Run Test
+        working-directory: ./tests/cases/tm2tm
+        run: |
+          make network
+          make test
+          make network-down
