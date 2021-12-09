@@ -5,7 +5,7 @@ build:
 
 .PHONY: test
 test:
-	go test -v ./modules/...
+	go test -v ./pkg/...
 
 .PHONY: proto-gen
 proto-gen:

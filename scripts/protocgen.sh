@@ -7,9 +7,7 @@ protoc_gen_gocosmos() {
     echo -e "\tPlease run this command from somewhere inside the cosmos-sdk folder."
     return 1
   fi
-  cd ./scripts/sandbox
   go get github.com/regen-network/cosmos-proto/protoc-gen-gocosmos 2>/dev/null
-  cd ../..
 }
 
 protoc_gen_gocosmos

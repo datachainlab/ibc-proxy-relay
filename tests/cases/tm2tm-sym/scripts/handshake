@@ -1,0 +1,44 @@
+#!/bin/bash
+
+set -eux
+
+source $(cd $(dirname "$0"); pwd)/../../../scripts/util
+
+SCRIPT_DIR=$(cd $(dirname $0); pwd)
+RLY_BINARY=${SCRIPT_DIR}/../../../../build/uly
+RLY="${RLY_BINARY} --debug"
+
+CHAINID_ONE=ibc0
+RLYKEY=testkey
+CHAINID_TWO=ibc1
+PATH_NAME=ibc01
+CHAINID_PROXY=proxy0
+
+$RLY proxy-tendermint keys show $CHAINID_ONE $RLYKEY
+$RLY proxy-tendermint keys show $CHAINID_TWO $RLYKEY
+$RLY proxy-tendermint keys show $CHAINID_PROXY $RLYKEY
+
+# initialize the light client for {{chain_id}}
+retry 5 $RLY proxy-tendermint light init $CHAINID_ONE -f
+retry 5 $RLY proxy-tendermint light init $CHAINID_TWO -f
+retry 5 $RLY proxy-tendermint light init $CHAINID_PROXY -f
+
+# # add a path between chain0 and chain1
+$RLY paths add $CHAINID_ONE $CHAINID_TWO $PATH_NAME --file=./configs/path.json
+
+retry 5 $RLY tx clients $PATH_NAME
+
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_ONE
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_TWO
+retry 5 $RLY tx update-clients $PATH_NAME
+
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_ONE
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_TWO
+retry 5 $RLY tx update-clients $PATH_NAME
+
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_ONE
+retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_TWO
+retry 5 $RLY tx update-clients $PATH_NAME
+
+retry 5 $RLY tx connection $PATH_NAME
+retry 5 $RLY tx channel $PATH_NAME
