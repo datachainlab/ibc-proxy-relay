@@ -4,11 +4,13 @@ ARG ALPINE_VER=3.13
 FROM golang:${GOLAGN_VER}-alpine${ALPINE_VER} AS scaffold
 WORKDIR /root
 
-COPY ./build/simd /root/build/simd
+COPY ./ ./
+
+RUN go build -mod readonly -o /root/build/simd ./simapp/simd
 
 FROM alpine:${ALPINE_VER} AS initializer
 
-RUN apk add --no-cache jq bash libc6-compat
+RUN apk add --no-cache jq bash
 
 WORKDIR /root
 
@@ -22,11 +24,9 @@ ARG P2PPORT=26656
 ARG PROFPORT=6060
 ARG GRPCPORT=9090
 
-RUN ./scripts/tm-chain /usr/bin/simd $CHAINID $CHAINDIR $RPCPORT $P2PPORT $PROFPORT $GRPCPORT
+RUN ./scripts/tm-chain simd $CHAINID $CHAINDIR $RPCPORT $P2PPORT $PROFPORT $GRPCPORT
 
 FROM alpine:${ALPINE_VER}
-
-RUN apk add --no-cache libc6-compat
 
 WORKDIR /root
 
