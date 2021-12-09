@@ -9,7 +9,7 @@ import (
 	commitmenttypes "github.com/cosmos/ibc-go/modules/core/23-commitment/types"
 	host "github.com/cosmos/ibc-go/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
-	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
+	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy"
 	proxytypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-proxy/types"
 	ibcproxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"

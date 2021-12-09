@@ -1,7 +1,7 @@
 syntax = "proto3";
 package ibc.proxy.tendermint.v1;
 
-option go_package = "github.com/datachainlab/ibc-proxy-prover/pkg/proxy/tendermint";
+option go_package = "github.com/datachainlab/ibc-proxy-relay/pkg/proxy/tendermint";
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";

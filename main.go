@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	proxy "github.com/datachainlab/ibc-proxy-prover/pkg/proxy/module"
-	proxytm "github.com/datachainlab/ibc-proxy-prover/pkg/proxy/tendermint/module"
+	proxy "github.com/datachainlab/ibc-proxy-relay/pkg/proxy/module"
+	proxytm "github.com/datachainlab/ibc-proxy-relay/pkg/proxy/tendermint/module"
 	tendermint "github.com/hyperledger-labs/yui-relayer/chains/tendermint/module"
 	"github.com/hyperledger-labs/yui-relayer/cmd"
 )

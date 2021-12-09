@@ -2,8 +2,8 @@ package module
 
 import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
-	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy/cmd"
+	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy"
+	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy/cmd"
 	ibcproxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"

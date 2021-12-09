@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
+	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"
 )

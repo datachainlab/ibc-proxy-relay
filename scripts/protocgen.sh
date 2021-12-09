@@ -30,5 +30,5 @@ Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types:. \
 
 done
 
-cp -r github.com/datachainlab/ibc-proxy-prover/* ./
+cp -r github.com/datachainlab/ibc-proxy-relay/* ./
 rm -rf github.com

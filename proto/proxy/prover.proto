@@ -1,7 +1,7 @@
 syntax = "proto3";
 package ibc.proxy.prover.v1;
 
-option go_package = "github.com/datachainlab/ibc-proxy-prover/pkg/proxy";
+option go_package = "github.com/datachainlab/ibc-proxy-relay/pkg/proxy";
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";

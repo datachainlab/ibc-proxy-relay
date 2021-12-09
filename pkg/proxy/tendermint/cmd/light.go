@@ -6,7 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	tmclient "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
-	"github.com/datachainlab/ibc-proxy-prover/pkg/proxy"
+	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"
 	"github.com/hyperledger-labs/yui-relayer/config"
 	"github.com/spf13/cobra"

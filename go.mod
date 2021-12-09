@@ -1,4 +1,4 @@
-module github.com/datachainlab/ibc-proxy-prover
+module github.com/datachainlab/ibc-proxy-relay
 
 go 1.16
 
