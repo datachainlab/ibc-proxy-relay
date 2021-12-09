@@ -1,13 +1,13 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	conntypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
@@ -17,16 +17,19 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/modules/core/exported"
 	multivtypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-multiv/types"
 	proxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
-	"github.com/spf13/viper"
 
 	"github.com/hyperledger-labs/yui-relayer/core"
 )
 
 type Prover struct {
-	chain      core.ChainI
-	prover     core.ProverI
-	upstream   *Upstream
-	downstream *Downstream
+	chain           core.ChainI
+	prover          core.ProverI
+	upstreamProxy   *UpstreamProxy
+	downstreamProxy *DownstreamProxy
+
+	path *core.PathEnd
+
+	proxySynchronizer *ProxySynchronizer
 }
 
 var (
@@ -36,44 +39,60 @@ var (
 func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamConfig, downstreamConfig *DownstreamConfig) (*Prover, error) {
 	if upstreamConfig == nil && downstreamConfig == nil {
 		return nil, fmt.Errorf("either upstream or downstream must be not nil")
-	} else if downstreamConfig != nil {
-		prover = NewDownstreamProver(prover)
+	} else if downstreamConfig != nil { // TODO required only if upstreamConfig == nil ?
+		prover = NewMultiVProver(prover)
 	}
 	pr := &Prover{
-		chain:      chain,
-		prover:     prover,
-		upstream:   NewUpstream(upstreamConfig, chain),
-		downstream: NewDownstream(downstreamConfig, chain),
+		chain:           chain,
+		prover:          prover,
+		upstreamProxy:   NewUpstreamProxy(upstreamConfig, chain),
+		downstreamProxy: NewDownstreamProxy(downstreamConfig, chain),
 	}
-	if pr.upstream != nil {
-		pr.upstream.Proxy.SetPath(&core.PathEnd{
-			ChainID:      pr.upstream.Proxy.ChainID(),
-			ClientID:     pr.upstream.UpstreamClientID,
+	if pr.downstreamProxy != nil {
+		pr.downstreamProxy.SetPath(&core.PathEnd{
+			ChainID:      pr.downstreamProxy.ChainID(),
+			ClientID:     pr.downstreamProxy.UpstreamClientID,
 			ConnectionID: "connection-0",
 			ChannelID:    "channel-0",
 			PortID:       "transfer",
 			Order:        "unordered",
 			Version:      "ics20-1",
 		})
-		pr.chain.RegisterMsgEventListener(pr)
 	}
-	if pr.downstream != nil {
-		pr.downstream.ProxyChain.SetPath(&core.PathEnd{
-			ChainID:      pr.downstream.ProxyChain.ChainID(),
-			ClientID:     pr.downstream.UpstreamClientID,
+	if pr.upstreamProxy != nil {
+		pr.upstreamProxy.SetPath(&core.PathEnd{
+			ChainID:      pr.upstreamProxy.ChainID(),
+			ClientID:     pr.upstreamProxy.UpstreamClientID,
 			ConnectionID: "connection-0",
 			ChannelID:    "channel-0",
 			PortID:       "transfer",
 			Order:        "unordered",
 			Version:      "ics20-1",
 		})
+		pr.proxySynchronizer = NewProxySynchronizer(core.NewProvableChain(pr.chain, pr.prover), pr.upstreamProxy, pr.downstreamProxy)
+		pr.chain.RegisterMsgEventListener(NewProxyUpdater(pr.proxySynchronizer))
 	}
 	return pr, nil
 }
 
+// SetPath sets a given path to the chain
+func (pr *Prover) SetPath(p *core.PathEnd) error {
+	pr.path = p
+	if pr.proxySynchronizer != nil {
+		pr.proxySynchronizer.SetPath(p)
+	}
+	return nil
+}
+
+func (pr *Prover) SetupForRelay(ctx context.Context) error {
+	// TODO sync with the upstream
+	// return pr.proxySynchronizer.SyncALL()
+	return nil
+}
+
 func (pr *Prover) GetUnderlyingProver() core.ProverI {
 	switch prover := pr.prover.(type) {
-	case *DownstreamProver:
+	case *MultiVProver:
 		return prover.ProverI
 	default:
 		return prover
@@ -87,9 +106,8 @@ func (pr *Prover) GetChainID() string {
 
 // QueryLatestHeader returns the latest header from the chain
 func (pr *Prover) QueryLatestHeader() (out core.HeaderI, err error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryLatestHeader()
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryLatestHeader()
 	} else {
 		return pr.prover.QueryLatestHeader()
 	}
@@ -97,9 +115,8 @@ func (pr *Prover) QueryLatestHeader() (out core.HeaderI, err error) {
 
 // GetLatestLightHeight returns the latest height on the light client
 func (pr *Prover) GetLatestLightHeight() (int64, error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.GetLatestLightHeight()
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.GetLatestLightHeight()
 	} else {
 		return pr.prover.GetLatestLightHeight()
 	}
@@ -107,9 +124,8 @@ func (pr *Prover) GetLatestLightHeight() (int64, error) {
 
 // CreateMsgCreateClient creates a CreateClientMsg to this chain
 func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.CreateMsgCreateClient(clientID, dstHeader, signer)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.CreateMsgCreateClient(clientID, dstHeader, signer)
 	} else {
 		return pr.prover.CreateMsgCreateClient(clientID, dstHeader, signer)
 	}
@@ -117,9 +133,8 @@ func (pr *Prover) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI,
 
 // SetupHeader creates a new header based on a given header
 func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader core.HeaderI) (core.HeaderI, error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.SetupHeader(dst, baseSrcHeader)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.SetupHeader(dst, baseSrcHeader)
 	} else {
 		return pr.prover.SetupHeader(dst, baseSrcHeader)
 	}
@@ -127,9 +142,8 @@ func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader co
 
 // UpdateLightWithHeader updates a header on the light client and returns the header and height corresponding to the chain
 func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight int64, queryableHeight int64, err error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.UpdateLightWithHeader()
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.UpdateLightWithHeader()
 	} else {
 		return pr.prover.UpdateLightWithHeader()
 	}
@@ -137,9 +151,8 @@ func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight i
 
 // QueryClientConsensusState returns the ClientConsensusState and its proof
 func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryProxyClientConsensusStateWithProof(height, dstClientConsHeight)
 	} else {
 		// in case we are downstream:
 
@@ -163,7 +176,7 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 			ProofHeight:     clientRes.ProofHeight,
 			ConsensusHeight: proxyClientState.GetLatestHeight().(clienttypes.Height),
 		}
-		proxyConsRes, err := pr.downstream.ProxyChainProver.QueryClientConsensusStateWithProof(
+		proxyConsRes, err := pr.downstreamProxy.QueryClientConsensusStateWithProof(
 			int64(proxyClientState.GetLatestHeight().GetRevisionHeight()-1),
 			dstClientConsHeight,
 		)
@@ -176,19 +189,15 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 			// TODO: I realized that `consensusHeight` need not to be kept here. Instead, it can use a consensusHeight of MsgConnOpen*.
 			ConsensusHeight: dstClientConsHeight.(clienttypes.Height),
 		}
-		proof, err := pr.makeMultiVConsensusStateProof(leafClient, head)
-		if err != nil {
-			return nil, err
-		}
+		proof := makeConsensusStateProof(pr.chain.Codec(), leafClient, head)
 		return clienttypes.NewQueryConsensusStateResponse(proxyConsRes.ConsensusState, proof, dstClientConsHeight.(clienttypes.Height)), nil
 	}
 }
 
 // QueryClientStateWithProof returns the ClientState and its proof
 func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyClientStateWithProof(height)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryProxyClientStateWithProof(height)
 	} else {
 		// in case we are downstream:
 
@@ -215,7 +224,7 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 			ConsensusHeight: proxyClientState.GetLatestHeight().(clienttypes.Height),
 		}
 		// TODO (height-1) is for tendermint specific
-		proxyClientRes, err := pr.downstream.ProxyChainProver.QueryClientStateWithProof(int64(proxyClientState.GetLatestHeight().GetRevisionHeight() - 1))
+		proxyClientRes, err := pr.downstreamProxy.QueryClientStateWithProof(int64(proxyClientState.GetLatestHeight().GetRevisionHeight() - 1))
 		if err != nil {
 			return nil, err
 		}
@@ -223,62 +232,15 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 			Proof:       proxyClientRes.Proof,
 			ProofHeight: proxyClientRes.ProofHeight,
 		}
-		proof, err := pr.makeMultiVClientStateProof(leafClient, head)
-		if err != nil {
-			return nil, err
-		}
+		proof := makeClientStateProof(pr.chain.Codec(), leafClient, head)
 		return clienttypes.NewQueryClientStateResponse(proxyClientRes.ClientState, proof, clientRes.ProofHeight), nil
 	}
 }
 
-func (pr *Prover) makeMultiVClientStateProof(
-	leafClient *multivtypes.LeafClientProof,
-	branches ...*multivtypes.BranchProof,
-) ([]byte, error) {
-	var mp multivtypes.MultiProof
-
-	for _, branch := range branches {
-		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-			Proof: &multivtypes.Proof_Branch{Branch: branch},
-		})
-	}
-	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-		Proof: &multivtypes.Proof_LeafClient{LeafClient: leafClient},
-	})
-
-	any, err := codectypes.NewAnyWithValue(&mp)
-	if err != nil {
-		return nil, err
-	}
-	return pr.chain.Codec().Marshal(any)
-}
-
-func (pr *Prover) makeMultiVConsensusStateProof(
-	leafConsensus *multivtypes.LeafConsensusProof,
-	branches ...*multivtypes.BranchProof,
-) ([]byte, error) {
-	var mp multivtypes.MultiProof
-
-	for _, branch := range branches {
-		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-			Proof: &multivtypes.Proof_Branch{Branch: branch},
-		})
-	}
-	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-		Proof: &multivtypes.Proof_LeafConsensus{LeafConsensus: leafConsensus},
-	})
-
-	any, err := codectypes.NewAnyWithValue(&mp)
-	if err != nil {
-		return nil, err
-	}
-	return pr.chain.Codec().Marshal(any)
-}
-
 // QueryConnectionWithProof returns the Connection and its proof
 func (pr *Prover) QueryConnectionWithProof(height int64) (*conntypes.QueryConnectionResponse, error) {
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyConnectionStateWithProof(height)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryProxyConnectionStateWithProof(height)
 	} else {
 		return pr.prover.QueryConnectionWithProof(height)
 	}
@@ -286,9 +248,8 @@ func (pr *Prover) QueryConnectionWithProof(height int64) (*conntypes.QueryConnec
 
 // QueryChannelWithProof returns the Channel and its proof
 func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryChannelResponse, err error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyChannelWithProof(height)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryProxyChannelWithProof(height)
 	} else {
 		return pr.prover.QueryChannelWithProof(height)
 	}
@@ -296,19 +257,18 @@ func (pr *Prover) QueryChannelWithProof(height int64) (chanRes *chantypes.QueryC
 
 // QueryPacketCommitmentWithProof returns the packet commitment and its proof
 func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
+	if pr.upstreamProxy != nil {
 		// first, query a packet commitment to the proxy
 		// if the commitment exists, just returns it
 		// otherwise, the proxy proxies the commitment
-		res, err := pr.upstream.Proxy.QueryProxyPacketCommitmentWithProof(height, seq)
+		res, err := pr.upstreamProxy.QueryProxyPacketCommitmentWithProof(height, seq)
 		if err == nil {
 			return res, nil
 		} else if !strings.Contains(err.Error(), "packet commitment not found") {
 			return nil, err
 		}
 		log.Println("try to perform a relay `upstream->proxy`")
-		provableHeight, err := pr.updateProxyUpstreamClient()
+		provableHeight, err := pr.proxySynchronizer.updateProxyUpstreamClient()
 		if err != nil {
 			return nil, err
 		}
@@ -320,19 +280,19 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 		if err != nil {
 			return nil, err
 		}
-		signer, err := pr.upstream.Proxy.GetAddress()
+		signer, err := pr.upstreamProxy.GetAddress()
 		if err != nil {
 			return nil, err
 		}
 		proxyMsg := &proxytypes.MsgProxyRecvPacket{
-			UpstreamClientId: pr.upstream.UpstreamClientID,
+			UpstreamClientId: pr.upstreamProxy.UpstreamClientID,
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Packet:           *packet,
 			Proof:            pcRes.Proof,
 			ProofHeight:      pcRes.ProofHeight,
 			Signer:           signer.String(),
 		}
-		if _, err := pr.upstream.Proxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		if _, err := pr.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("the relay `upstream->proxy` succeeded, but you need to update the proxy client in the downstream and call `QueryPacketCommitmentWithProof` again")
@@ -343,25 +303,39 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 
 // QueryPacketAcknowledgementCommitmentWithProof returns the packet acknowledgement commitment and its proof
 func (pr *Prover) QueryPacketAcknowledgementCommitmentWithProof(height int64, seq uint64) (ackRes *chantypes.QueryPacketAcknowledgementResponse, err error) {
-	pr.xxxInitChains()
-	if pr.upstream != nil {
-		return pr.upstream.Proxy.QueryProxyPacketAcknowledgementCommitmentWithProof(height, seq)
+	if pr.upstreamProxy != nil {
+		return pr.upstreamProxy.QueryProxyPacketAcknowledgementCommitmentWithProof(height, seq)
 	} else {
 		return pr.prover.QueryPacketAcknowledgementCommitmentWithProof(height, seq)
 	}
 }
 
-type DownstreamProver struct {
+// Init ...
+func (pr *Prover) Init(homePath string, timeout time.Duration, codec codec.ProtoCodecMarshaler, debug bool) error {
+	if pr.upstreamProxy != nil {
+		if err := pr.upstreamProxy.Init(homePath, timeout, codec, debug); err != nil {
+			return err
+		}
+	}
+	if pr.downstreamProxy != nil {
+		if err := pr.downstreamProxy.Init(homePath, timeout, codec, debug); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type MultiVProver struct {
 	core.ProverI
 }
 
-var _ core.ProverI = (*DownstreamProver)(nil)
+var _ core.ProverI = (*MultiVProver)(nil)
 
-func NewDownstreamProver(prover core.ProverI) *DownstreamProver {
-	return &DownstreamProver{ProverI: prover}
+func NewMultiVProver(prover core.ProverI) *MultiVProver {
+	return &MultiVProver{ProverI: prover}
 }
 
-func (p *DownstreamProver) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
+func (p *MultiVProver) CreateMsgCreateClient(clientID string, dstHeader core.HeaderI, signer sdk.AccAddress) (*clienttypes.MsgCreateClient, error) {
 	msg, err := p.ProverI.CreateMsgCreateClient(clientID, dstHeader, signer)
 	if err != nil {
 		return nil, err
@@ -373,22 +347,4 @@ func (p *DownstreamProver) CreateMsgCreateClient(clientID string, dstHeader core
 	}
 	msg.ClientState = anyClientState
 	return msg, nil
-}
-
-// xxxInitChains initializes the codec of chains
-// TODO: This method should be removed after the problem with the prover not giving a codec is fixed
-func (pr *Prover) xxxInitChains() {
-	// XXX: the following params should be given from the relayer
-	homePath := viper.GetString(flags.FlagHome)
-	timeout := time.Minute
-	if pr.upstream != nil && pr.upstream.Proxy.ProxyChainI.Codec() == nil {
-		if err := pr.upstream.Proxy.ProxyChainI.Init(homePath, timeout, pr.chain.Codec(), true); err != nil {
-			panic(err)
-		}
-	}
-	if pr.downstream != nil && pr.downstream.ProxyChain.Codec() == nil {
-		if err := pr.downstream.ProxyChain.Init(homePath, timeout, pr.chain.Codec(), true); err != nil {
-			panic(err)
-		}
-	}
 }

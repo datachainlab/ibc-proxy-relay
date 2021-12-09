@@ -26,12 +26,12 @@ func (pc ProverConfig) Build(chain core.ChainI) (core.ProverI, error) {
 	return NewProver(chain, prover, pc.Upstream, pc.Downstream)
 }
 
-type Upstream struct {
-	Proxy            *ProxyProvableChain
+type UpstreamProxy struct {
+	ProxyProvableChain
 	UpstreamClientID string
 }
 
-func NewUpstream(config *UpstreamConfig, chain core.ChainI) *Upstream {
+func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *UpstreamProxy {
 	if config == nil {
 		return nil
 	}
@@ -43,23 +43,22 @@ func NewUpstream(config *UpstreamConfig, chain core.ChainI) *Upstream {
 		UpstreamClientID: config.UpstreamClientId,
 		UpstreamChain:    chain,
 	})
-	proxyProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
+	proxyChainProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
 	if err != nil {
 		panic(err)
 	}
-	return &Upstream{
-		Proxy:            NewProxyProvableChain(proxyChain, proxyProver),
-		UpstreamClientID: config.UpstreamClientId,
+	return &UpstreamProxy{
+		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
+		UpstreamClientID:   config.UpstreamClientId,
 	}
 }
 
-type Downstream struct {
-	ProxyChain       ProxyChainI
-	ProxyChainProver ProxyChainProverI
+type DownstreamProxy struct {
+	ProxyProvableChain
 	UpstreamClientID string
 }
 
-func NewDownstream(config *DownstreamConfig, chain core.ChainI) *Downstream {
+func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *DownstreamProxy {
 	if config == nil {
 		return nil
 	}
@@ -71,10 +70,9 @@ func NewDownstream(config *DownstreamConfig, chain core.ChainI) *Downstream {
 	if err != nil {
 		panic(err)
 	}
-	return &Downstream{
-		ProxyChain:       proxyChain,
-		ProxyChainProver: proxyChainProver,
-		UpstreamClientID: config.UpstreamClientId,
+	return &DownstreamProxy{
+		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
+		UpstreamClientID:   config.UpstreamClientId,
 	}
 }
 

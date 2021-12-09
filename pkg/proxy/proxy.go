@@ -1,6 +1,9 @@
 package proxy
 
 import (
+	"time"
+
+	"github.com/cosmos/cosmos-sdk/codec"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/modules/core/03-connection/types"
 	chantypes "github.com/cosmos/ibc-go/modules/core/04-channel/types"
@@ -15,6 +18,26 @@ type ProxyProvableChain struct {
 
 func NewProxyProvableChain(chain ProxyChainI, prover ProxyChainProverI) *ProxyProvableChain {
 	return &ProxyProvableChain{ProxyChainI: chain, ProxyChainProverI: prover}
+}
+
+func (pc *ProxyProvableChain) Init(homePath string, timeout time.Duration, codec codec.ProtoCodecMarshaler, debug bool) error {
+	if err := pc.ProxyChainI.Init(homePath, timeout, codec, debug); err != nil {
+		return err
+	}
+	if err := pc.ProxyChainProverI.Init(homePath, timeout, codec, debug); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pc *ProxyProvableChain) SetPath(path *core.PathEnd) error {
+	if err := pc.ProxyChainI.SetPath(path); err != nil {
+		return err
+	}
+	if err := pc.ProxyChainI.SetPath(path); err != nil {
+		return err
+	}
+	return nil
 }
 
 type ProxyChainI interface {
