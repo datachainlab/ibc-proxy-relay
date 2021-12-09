@@ -82,8 +82,14 @@ jobs:
         working-directory: ./tests/scripts
         run: |
           ./load_docker_images $CACHE_DOCKER_TENDERMINT_DIR tendermint-chain0:latest tendermint-chain1:latest tendermint-proxy0:latest
-      - name: Run Test
+      - name: Run Test (one side proxy)
         working-directory: ./tests/cases/tm2tm
+        run: |
+          make network
+          make test
+          make network-down
+      - name: Run Test (both side proxy)
+        working-directory: ./tests/cases/tm2tm-sym
         run: |
           make network
           make test
