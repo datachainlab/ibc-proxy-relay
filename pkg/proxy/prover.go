@@ -39,7 +39,7 @@ var (
 func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamConfig, downstreamConfig *DownstreamConfig) (*Prover, error) {
 	if upstreamConfig == nil && downstreamConfig == nil {
 		return nil, fmt.Errorf("either upstream or downstream must be not nil")
-	} else if downstreamConfig != nil { // TODO required only if upstreamConfig == nil ?
+	} else if downstreamConfig != nil {
 		prover = NewMultiVProver(prover)
 	}
 	pr := &Prover{
