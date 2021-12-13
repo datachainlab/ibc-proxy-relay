@@ -281,8 +281,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 	}
 
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenTry
-	switch {
-	case ps.downstreamProxy == nil:
+	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
 			ConnectionId:     ps.path.ConnectionID,
 			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
@@ -302,7 +301,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 			ConsensusHeight: consensusHeight.(clienttypes.Height),
 			Signer:          signer.String(),
 		}
-	case ps.downstreamProxy != nil:
+	} else {
 		head := &multivtypes.BranchProof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
@@ -388,8 +387,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 	}
 
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenAck
-	switch {
-	case ps.downstreamProxy == nil:
+	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
 			ConnectionId:     ps.path.ConnectionID,
 			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
@@ -409,7 +407,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 			ConsensusHeight: consensusHeight.(clienttypes.Height),
 			Signer:          signer.String(),
 		}
-	case ps.downstreamProxy != nil:
+	} else {
 		head := &multivtypes.BranchProof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
