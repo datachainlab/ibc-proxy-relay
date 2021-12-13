@@ -93,11 +93,6 @@ import (
 	ibctypes "github.com/cosmos/ibc-go/modules/core/types"
 	ibcmock "github.com/cosmos/ibc-go/testing/mock"
 
-	fabric "github.com/hyperledger-labs/yui-fabric-ibc/x/ibc/light-clients/xx-fabric"
-	fabrictypes "github.com/hyperledger-labs/yui-fabric-ibc/x/ibc/light-clients/xx-fabric/types"
-
-	mockclient "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock"
-	mockclienttypes "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock/types"
 	proxyclienttypes "github.com/datachainlab/ibc-proxy/modules/light-clients/xx-proxy/types"
 	ibcproxy "github.com/datachainlab/ibc-proxy/modules/proxy"
 	ibcproxykeeper "github.com/datachainlab/ibc-proxy/modules/proxy/keeper"
@@ -132,8 +127,6 @@ var (
 		slashing.AppModuleBasic{},
 		ibc.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
-		fabric.AppModuleBasic{},
-		mockclient.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
@@ -512,8 +505,6 @@ func (app *SimApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.
 	ibcGenesisState := ibctypes.DefaultGenesisState()
 	ibcGenesisState.ClientGenesis.Params.AllowedClients = append(
 		ibcGenesisState.ClientGenesis.Params.AllowedClients,
-		fabrictypes.Fabric,
-		mockclienttypes.Mock,
 		proxyclienttypes.ProxyClientType,
 	)
 	genesisState[ibc.AppModule{}.Name()] = app.appCodec.MustMarshalJSON(ibcGenesisState)

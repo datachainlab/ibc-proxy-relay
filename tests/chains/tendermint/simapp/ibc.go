@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/ibc-go/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/modules/core/keeper"
 	tenderminttypes "github.com/cosmos/ibc-go/modules/light-clients/07-tendermint/types"
-	mocktypes "github.com/datachainlab/ibc-mock-client/modules/light-clients/xx-mock/types"
 	ibcproxykeeper "github.com/datachainlab/ibc-proxy/modules/proxy/keeper"
 )
 
@@ -40,8 +39,6 @@ func (k ClientKeeper) ValidateSelfClient(ctx sdk.Context, clientState exported.C
 	switch cs := clientState.(type) {
 	case *tenderminttypes.ClientState:
 		return k.Keeper.ValidateSelfClient(ctx, cs)
-	case *mocktypes.ClientState:
-		return nil
 	default:
 		return fmt.Errorf("unexpected client state type: %T %#v", cs, cs)
 	}

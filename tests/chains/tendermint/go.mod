@@ -5,10 +5,8 @@ go 1.16
 require (
 	github.com/cosmos/cosmos-sdk v0.43.0-beta1
 	github.com/cosmos/ibc-go v1.0.0-beta1
-	github.com/datachainlab/ibc-mock-client v0.0.0-20210801010718-05f8b1087574
 	github.com/datachainlab/ibc-proxy v0.0.0-20211213101301-0cb8e80909c1
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger-labs/yui-fabric-ibc v0.2.0
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.3.1
 	github.com/spf13/cobra v1.1.3
