@@ -170,6 +170,88 @@ func (ps ProxySynchronizer) SyncCreateClient() error {
 	return nil
 }
 
+func (ps ProxySynchronizer) SyncClientState() error {
+	provableHeight, err := ps.updateProxyUpstreamClient()
+	if err != nil {
+		return fmt.Errorf("failed to updateProxyUpstreamClient: %w", err)
+	}
+	clientRes, err := ps.upstream.QueryClientStateWithProof(provableHeight)
+	if err != nil {
+		return fmt.Errorf("failed to QueryClientStateWithProof: %w", err)
+	}
+	clientState := clientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+	consensusHeight := clientState.GetLatestHeight()
+	consensusRes, err := ps.upstream.QueryClientConsensusStateWithProof(provableHeight, consensusHeight)
+	if err != nil {
+		return fmt.Errorf("failed to QueryClientConsensusStateWithProof: %w", err)
+	}
+	signer, err := ps.upstreamProxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	var proxyMsg *proxytypes.MsgProxyClientState
+	if ps.downstreamProxy == nil {
+		proxyMsg = &proxytypes.MsgProxyClientState{
+			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			CounterpartyClientId: ps.path.ClientID,
+			ClientState:          clientRes.ClientState,
+			ConsensusState:       consensusRes.ConsensusState,
+			ProofClient:          clientRes.Proof,
+			ProofConsensus:       consensusRes.Proof,
+			ProofHeight:          clientRes.ProofHeight,
+			ConsensusHeight:      consensusHeight.(clienttypes.Height),
+			Signer:               signer.String(),
+		}
+	} else {
+		head := &multivtypes.BranchProof{
+			ClientProof:     clientRes.Proof,
+			ClientState:     clientRes.ClientState,
+			ConsensusProof:  consensusRes.Proof,
+			ConsensusState:  consensusRes.ConsensusState,
+			ConsensusHeight: consensusHeight.(clienttypes.Height),
+			ProofHeight:     clientRes.ProofHeight,
+		}
+		proxyClientRes, err := ps.downstreamProxy.QueryClientStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight()) - 1)
+		if err != nil {
+			return fmt.Errorf("failed to downstreamProxy.QueryClientStateWithProof: %w", err)
+		}
+		leafClient := &multivtypes.LeafClientProof{
+			Proof:       proxyClientRes.Proof,
+			ProofHeight: proxyClientRes.ProofHeight,
+		}
+		proofClient := makeClientStateProof(ps.upstream.Codec(), leafClient, head)
+		lc := proxyClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+		proxyConsensusRes, err := ps.downstreamProxy.QueryClientConsensusStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight())-1, lc.GetLatestHeight())
+		if err != nil {
+			return fmt.Errorf("failed to downstreamProxy.QueryClientConsensusStateWithProof: %w", err)
+		}
+		leafConsensus := &multivtypes.LeafConsensusProof{
+			Proof:           proxyConsensusRes.Proof,
+			ProofHeight:     proxyConsensusRes.ProofHeight,
+			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
+		}
+		proofConsensus := makeConsensusStateProof(ps.upstream.Codec(), leafConsensus, head)
+
+		proxyMsg = &proxytypes.MsgProxyClientState{
+			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			CounterpartyClientId: ps.path.ClientID,
+			ClientState:          proxyClientRes.ClientState,
+			ConsensusState:       proxyConsensusRes.ConsensusState,
+			ProofClient:          proofClient,
+			ProofConsensus:       proofConsensus,
+			ProofHeight:          clientRes.ProofHeight,
+			ConsensusHeight:      leafConsensus.ConsensusHeight,
+			Signer:               signer.String(),
+		}
+	}
+	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return fmt.Errorf("failed to SendMsgs: %w", err)
+	}
+	return nil
+}
+
 func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counterparty) error {
 	provableHeight, err := ps.updateProxyUpstreamClient()
 	if err != nil {
