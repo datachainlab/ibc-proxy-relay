@@ -11,7 +11,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/cosmos/cosmos-sdk v0.43.0-beta1
 	github.com/cosmos/ibc-go v1.0.0-beta1
-	github.com/datachainlab/ibc-proxy v0.0.0-20211213101301-0cb8e80909c1
+	github.com/datachainlab/ibc-proxy v0.0.0-20211215083748-15199363d68f
 	github.com/gogo/protobuf v1.3.3
 	github.com/hyperledger-labs/yui-relayer v0.1.1-0.20211201082514-122526148f85
 	github.com/spf13/cobra v1.1.3
