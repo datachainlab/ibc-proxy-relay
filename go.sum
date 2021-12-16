@@ -184,8 +184,8 @@ github.com/danieljoos/wincred v1.0.2/go.mod h1:SnuYRW9lp1oJrZX/dXJqr0cPK5gYXqx3E
 github.com/datachainlab/ibc-go v0.0.0-20210623043207-6582d8c965f8 h1:Nx9l9NCCKvCmGDDQslhKHc4hWXINcMKFykMQjrvu5o8=
 github.com/datachainlab/ibc-go v0.0.0-20210623043207-6582d8c965f8/go.mod h1:NU4IARjXt3Hj5xcju207SWjDMpqMx3CHUXejGe0EXfY=
 github.com/datachainlab/ibc-mock-client v0.0.0-20210801010718-05f8b1087574/go.mod h1:yz5E2DpB3FJZZjagC4HcW51km5HesF1tFQRr6k0HQvA=
-github.com/datachainlab/ibc-proxy v0.0.0-20211213101301-0cb8e80909c1 h1:zLbbwfN0JpKrm0KgN3cSJgRsou3sNROwfuwbtkGdSYk=
-github.com/datachainlab/ibc-proxy v0.0.0-20211213101301-0cb8e80909c1/go.mod h1:sFZvOZ18JcDDepeihATPlQbOVsXaOHcEHiu4vzXyvOo=
+github.com/datachainlab/ibc-proxy v0.0.0-20211215112335-22f8526e60bd h1:ngFENURcfCii4IsDYmreJ02Kewq7OCkq5SeTBzGqYog=
+github.com/datachainlab/ibc-proxy v0.0.0-20211215112335-22f8526e60bd/go.mod h1:sFZvOZ18JcDDepeihATPlQbOVsXaOHcEHiu4vzXyvOo=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

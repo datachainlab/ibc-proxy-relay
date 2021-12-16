@@ -168,7 +168,7 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 		if err != nil {
 			return nil, err
 		}
-		head := &multivtypes.BranchProof{
+		head := &multivtypes.Proof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
 			ConsensusProof:  consRes.Proof,
@@ -183,13 +183,11 @@ func (pr *Prover) QueryClientConsensusStateWithProof(height int64, dstClientCons
 		if err != nil {
 			return nil, err
 		}
-		leafClient := &multivtypes.LeafConsensusProof{
+		leafClient := &multivtypes.LeafProof{
 			Proof:       proxyConsRes.Proof,
 			ProofHeight: proxyConsRes.ProofHeight,
-			// TODO: I realized that `consensusHeight` need not to be kept here. Instead, it can use a consensusHeight of MsgConnOpen*.
-			ConsensusHeight: dstClientConsHeight.(clienttypes.Height),
 		}
-		proof := makeConsensusStateProof(pr.chain.Codec(), leafClient, head)
+		proof := makeMultiProof(pr.chain.Codec(), head, nil, leafClient)
 		return clienttypes.NewQueryConsensusStateResponse(proxyConsRes.ConsensusState, proof, dstClientConsHeight.(clienttypes.Height)), nil
 	}
 }
@@ -215,7 +213,7 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 		if err != nil {
 			return nil, err
 		}
-		head := &multivtypes.BranchProof{
+		head := &multivtypes.Proof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
 			ConsensusProof:  consRes.Proof,
@@ -228,11 +226,11 @@ func (pr *Prover) QueryClientStateWithProof(height int64) (*clienttypes.QueryCli
 		if err != nil {
 			return nil, err
 		}
-		leafClient := &multivtypes.LeafClientProof{
+		leafClient := &multivtypes.LeafProof{
 			Proof:       proxyClientRes.Proof,
 			ProofHeight: proxyClientRes.ProofHeight,
 		}
-		proof := makeClientStateProof(pr.chain.Codec(), leafClient, head)
+		proof := makeMultiProof(pr.chain.Codec(), head, nil, leafClient)
 		return clienttypes.NewQueryClientStateResponse(proxyClientRes.ClientState, proof, clientRes.ProofHeight), nil
 	}
 }
@@ -340,7 +338,7 @@ func (p *MultiVProver) CreateMsgCreateClient(clientID string, dstHeader core.Hea
 	if err != nil {
 		return nil, err
 	}
-	clientState := multivtypes.NewClientState(msg.ClientState)
+	clientState := &multivtypes.ClientState{UnderlyingClientState: msg.ClientState, Depth: 0}
 	anyClientState, err := clienttypes.PackClientState(clientState)
 	if err != nil {
 		return nil, err

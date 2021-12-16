@@ -204,7 +204,7 @@ func (ps ProxySynchronizer) SyncClientState() error {
 			Signer:               signer.String(),
 		}
 	} else {
-		head := &multivtypes.BranchProof{
+		head := &multivtypes.Proof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
 			ConsensusProof:  consensusRes.Proof,
@@ -216,22 +216,21 @@ func (ps ProxySynchronizer) SyncClientState() error {
 		if err != nil {
 			return fmt.Errorf("failed to downstreamProxy.QueryClientStateWithProof: %w", err)
 		}
-		leafClient := &multivtypes.LeafClientProof{
+		leafClient := &multivtypes.LeafProof{
 			Proof:       proxyClientRes.Proof,
 			ProofHeight: proxyClientRes.ProofHeight,
 		}
-		proofClient := makeClientStateProof(ps.upstream.Codec(), leafClient, head)
+		proofClient := makeMultiProof(ps.upstream.Codec(), head, nil, leafClient)
 		lc := proxyClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
 		proxyConsensusRes, err := ps.downstreamProxy.QueryClientConsensusStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight())-1, lc.GetLatestHeight())
 		if err != nil {
 			return fmt.Errorf("failed to downstreamProxy.QueryClientConsensusStateWithProof: %w", err)
 		}
-		leafConsensus := &multivtypes.LeafConsensusProof{
-			Proof:           proxyConsensusRes.Proof,
-			ProofHeight:     proxyConsensusRes.ProofHeight,
-			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
+		leafConsensus := &multivtypes.LeafProof{
+			Proof:       proxyConsensusRes.Proof,
+			ProofHeight: proxyConsensusRes.ProofHeight,
 		}
-		proofConsensus := makeConsensusStateProof(ps.upstream.Codec(), leafConsensus, head)
+		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyClientState{
 			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
@@ -242,7 +241,7 @@ func (ps ProxySynchronizer) SyncClientState() error {
 			ProofClient:          proofClient,
 			ProofConsensus:       proofConsensus,
 			ProofHeight:          clientRes.ProofHeight,
-			ConsensusHeight:      leafConsensus.ConsensusHeight,
+			ConsensusHeight:      lc.GetLatestHeight().(clienttypes.Height),
 			Signer:               signer.String(),
 		}
 	}
@@ -302,7 +301,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 			Signer:          signer.String(),
 		}
 	} else {
-		head := &multivtypes.BranchProof{
+		head := &multivtypes.Proof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
 			ConsensusProof:  consensusRes.Proof,
@@ -314,22 +313,21 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 		if err != nil {
 			return err
 		}
-		leafClient := &multivtypes.LeafClientProof{
+		leafClient := &multivtypes.LeafProof{
 			Proof:       proxyClientRes.Proof,
 			ProofHeight: proxyClientRes.ProofHeight,
 		}
-		proofClient := makeClientStateProof(ps.upstream.Codec(), leafClient, head)
+		proofClient := makeMultiProof(ps.upstream.Codec(), head, nil, leafClient)
 		lc := proxyClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
 		proxyConsensusRes, err := ps.downstreamProxy.QueryClientConsensusStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight())-1, lc.GetLatestHeight())
 		if err != nil {
 			return err
 		}
-		leafConsensus := &multivtypes.LeafConsensusProof{
-			Proof:           proxyConsensusRes.Proof,
-			ProofHeight:     proxyConsensusRes.ProofHeight,
-			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
+		leafConsensus := &multivtypes.LeafProof{
+			Proof:       proxyConsensusRes.Proof,
+			ProofHeight: proxyConsensusRes.ProofHeight,
 		}
-		proofConsensus := makeConsensusStateProof(ps.upstream.Codec(), leafConsensus, head)
+		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
 			ConnectionId:     ps.path.ConnectionID,
@@ -347,7 +345,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 			ProofClient:     proofClient,
 			ProofConsensus:  proofConsensus,
 			ProofHeight:     connRes.ProofHeight,
-			ConsensusHeight: leafConsensus.ConsensusHeight,
+			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
 			Signer:          signer.String(),
 		}
 	}
@@ -408,7 +406,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 			Signer:          signer.String(),
 		}
 	} else {
-		head := &multivtypes.BranchProof{
+		head := &multivtypes.Proof{
 			ClientProof:     clientRes.Proof,
 			ClientState:     clientRes.ClientState,
 			ConsensusProof:  consensusRes.Proof,
@@ -420,23 +418,22 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 		if err != nil {
 			return err
 		}
-		leafClient := &multivtypes.LeafClientProof{
+		leafClient := &multivtypes.LeafProof{
 			Proof:       proxyClientRes.Proof,
 			ProofHeight: proxyClientRes.ProofHeight,
 		}
-		proofClient := makeClientStateProof(ps.upstream.Codec(), leafClient, head)
+		proofClient := makeMultiProof(ps.upstream.Codec(), head, nil, leafClient)
 
 		lc := proxyClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
 		proxyConsensusRes, err := ps.downstreamProxy.QueryClientConsensusStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight())-1, lc.GetLatestHeight())
 		if err != nil {
 			return err
 		}
-		leafConsensus := &multivtypes.LeafConsensusProof{
-			Proof:           proxyConsensusRes.Proof,
-			ProofHeight:     proxyConsensusRes.ProofHeight,
-			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
+		leafConsensus := &multivtypes.LeafProof{
+			Proof:       proxyConsensusRes.Proof,
+			ProofHeight: proxyConsensusRes.ProofHeight,
 		}
-		proofConsensus := makeConsensusStateProof(ps.upstream.Codec(), leafConsensus, head)
+		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
 			ConnectionId:     ps.path.ConnectionID,
@@ -454,7 +451,7 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 			ProofClient:     proofClient,
 			ProofConsensus:  proofConsensus,
 			ProofHeight:     connRes.ProofHeight,
-			ConsensusHeight: leafConsensus.ConsensusHeight,
+			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
 			Signer:          signer.String(),
 		}
 	}
@@ -673,49 +670,18 @@ func (ps ProxySynchronizer) updateProxyUpstreamClient() (int64, error) {
 	return provableHeight, nil
 }
 
-func makeClientStateProof(
+func makeMultiProof(
 	cdc codec.Codec,
-	leafClient *multivtypes.LeafClientProof,
-	branches ...*multivtypes.BranchProof,
+	head *multivtypes.Proof,
+	branches []*multivtypes.Proof,
+	leafClient *multivtypes.LeafProof,
 ) []byte {
 	var mp multivtypes.MultiProof
-
+	mp.Head = *head
 	for _, branch := range branches {
-		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-			Proof: &multivtypes.Proof_Branch{Branch: branch},
-		})
+		mp.Branches = append(mp.Branches, *branch)
 	}
-	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-		Proof: &multivtypes.Proof_LeafClient{LeafClient: leafClient},
-	})
-
-	any, err := codectypes.NewAnyWithValue(&mp)
-	if err != nil {
-		panic(err)
-	}
-	bz, err := cdc.Marshal(any)
-	if err != nil {
-		panic(err)
-	}
-	return bz
-}
-
-func makeConsensusStateProof(
-	cdc codec.Codec,
-	leafConsensus *multivtypes.LeafConsensusProof,
-	branches ...*multivtypes.BranchProof,
-) []byte {
-	var mp multivtypes.MultiProof
-
-	for _, branch := range branches {
-		mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-			Proof: &multivtypes.Proof_Branch{Branch: branch},
-		})
-	}
-	mp.Proofs = append(mp.Proofs, &multivtypes.Proof{
-		Proof: &multivtypes.Proof_LeafConsensus{LeafConsensus: leafConsensus},
-	})
-
+	mp.Leaf = *leafClient
 	any, err := codectypes.NewAnyWithValue(&mp)
 	if err != nil {
 		panic(err)
