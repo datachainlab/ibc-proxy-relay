@@ -29,14 +29,14 @@ var (
 type ProxySynchronizer struct {
 	path            *ProxyPathEnd
 	upstream        *core.ProvableChain
-	upstreamProxy   *UpstreamProxy
-	downstreamProxy *DownstreamProxy
+	upstreamProxy   *ProxyProvableChain
+	downstreamProxy *ProxyProvableChain
 }
 
 func NewProxySynchronizer(
 	upstream *core.ProvableChain,
-	upstreamProxy *UpstreamProxy,
-	downstreamProxy *DownstreamProxy,
+	upstreamProxy *ProxyProvableChain,
+	downstreamProxy *ProxyProvableChain,
 ) *ProxySynchronizer {
 	return &ProxySynchronizer{
 		upstream:        upstream,

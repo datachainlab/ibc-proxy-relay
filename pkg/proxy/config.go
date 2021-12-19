@@ -26,14 +26,7 @@ func (pc ProverConfig) Build(chain core.ChainI) (core.ProverI, error) {
 	return NewProver(chain, prover, pc.Upstream, pc.Downstream)
 }
 
-type UpstreamProxy struct {
-	ProxyProvableChain
-}
-
-func NewUpstreamProxy(config *ProxyConfig) *UpstreamProxy {
-	if config == nil {
-		return nil
-	}
+func BuildProxyProvableChain(config *ProxyConfig) *ProxyProvableChain {
 	proxyChain, err := config.ProxyChain.GetCachedValue().(ProxyChainConfigI).Build()
 	if err != nil {
 		panic(err)
@@ -42,30 +35,7 @@ func NewUpstreamProxy(config *ProxyConfig) *UpstreamProxy {
 	if err != nil {
 		panic(err)
 	}
-	return &UpstreamProxy{
-		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-	}
-}
-
-type DownstreamProxy struct {
-	ProxyProvableChain
-}
-
-func NewDownstreamProxy(config *ProxyConfig) *DownstreamProxy {
-	if config == nil {
-		return nil
-	}
-	proxyChain, err := config.ProxyChain.GetCachedValue().(ProxyChainConfigI).Build()
-	if err != nil {
-		panic(err)
-	}
-	proxyChainProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
-	if err != nil {
-		panic(err)
-	}
-	return &DownstreamProxy{
-		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-	}
+	return NewProxyProvableChain(proxyChain, proxyChainProver)
 }
 
 var _, _ codectypes.UnpackInterfacesMessage = (*ProverConfig)(nil), (*ProxyConfig)(nil)

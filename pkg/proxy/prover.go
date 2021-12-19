@@ -24,8 +24,8 @@ import (
 type Prover struct {
 	chain           core.ChainI
 	prover          core.ProverI
-	upstreamProxy   *UpstreamProxy
-	downstreamProxy *DownstreamProxy
+	upstreamProxy   *ProxyProvableChain
+	downstreamProxy *ProxyProvableChain
 
 	path              *ProxyPathEnd
 	proxySynchronizer *ProxySynchronizer
@@ -41,13 +41,12 @@ func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *ProxyConf
 	} else if downstreamConfig != nil {
 		prover = NewMultiVProver(prover)
 	}
-	pr := &Prover{
-		chain:           chain,
-		prover:          prover,
-		upstreamProxy:   NewUpstreamProxy(upstreamConfig),
-		downstreamProxy: NewDownstreamProxy(downstreamConfig),
+	pr := &Prover{chain: chain, prover: prover}
+	if downstreamConfig != nil {
+		pr.downstreamProxy = BuildProxyProvableChain(downstreamConfig)
 	}
-	if pr.upstreamProxy != nil {
+	if upstreamConfig != nil {
+		pr.upstreamProxy = BuildProxyProvableChain(upstreamConfig)
 		pr.proxySynchronizer = NewProxySynchronizer(core.NewProvableChain(pr.chain, pr.prover), pr.upstreamProxy, pr.downstreamProxy)
 		pr.chain.RegisterMsgEventListener(NewProxyUpdater(pr.proxySynchronizer))
 	}
