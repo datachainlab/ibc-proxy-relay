@@ -43,7 +43,16 @@ func (p *ProxyPathEnd) ChannelVersion() string {
 }
 
 func (p *ProxyPathEnd) Validate() error {
-	return nil
+	pe := &core.PathEnd{
+		ChainId:      p.ChainId,
+		ClientId:     p.ClientId,
+		ConnectionId: p.ConnectionId,
+		ChannelId:    p.ChannelId,
+		PortId:       p.PortId,
+		Order:        p.Order,
+		Version:      p.Version,
+	}
+	return pe.Validate()
 }
 
 type clientPathEnd struct {
@@ -66,23 +75,23 @@ func (p *clientPathEnd) ClientID() string {
 }
 
 func (p *clientPathEnd) ConnectionID() string {
-	panic("not implemented") // TODO: Implement
+	panic("not supported")
 }
 
 func (p *clientPathEnd) ChannelID() string {
-	panic("not implemented") // TODO: Implement
+	panic("not supported")
 }
 
 func (p *clientPathEnd) PortID() string {
-	panic("not implemented") // TODO: Implement
+	panic("not supported")
 }
 
 func (p *clientPathEnd) ChannelOrder() channeltypes.Order {
-	panic("not implemented") // TODO: Implement
+	panic("not supported")
 }
 
 func (p *clientPathEnd) ChannelVersion() string {
-	panic("not implemented") // TODO: Implement
+	panic("not supported")
 }
 
 func (p *clientPathEnd) Validate() error {
