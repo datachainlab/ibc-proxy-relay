@@ -28,10 +28,9 @@ func (pc ProverConfig) Build(chain core.ChainI) (core.ProverI, error) {
 
 type UpstreamProxy struct {
 	ProxyProvableChain
-	UpstreamClientID string
 }
 
-func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *UpstreamProxy {
+func NewUpstreamProxy(config *ProxyConfig) *UpstreamProxy {
 	if config == nil {
 		return nil
 	}
@@ -39,26 +38,20 @@ func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *UpstreamProxy 
 	if err != nil {
 		panic(err)
 	}
-	proxyChain.SetProxyPath(ProxyPath{
-		UpstreamClientID: config.UpstreamClientId,
-		UpstreamChain:    chain,
-	})
 	proxyChainProver, err := config.ProxyChainProver.GetCachedValue().(ProxyChainProverConfigI).Build(proxyChain)
 	if err != nil {
 		panic(err)
 	}
 	return &UpstreamProxy{
 		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-		UpstreamClientID:   config.UpstreamClientId,
 	}
 }
 
 type DownstreamProxy struct {
 	ProxyProvableChain
-	UpstreamClientID string
 }
 
-func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *DownstreamProxy {
+func NewDownstreamProxy(config *ProxyConfig) *DownstreamProxy {
 	if config == nil {
 		return nil
 	}
@@ -72,11 +65,10 @@ func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *Downstream
 	}
 	return &DownstreamProxy{
 		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-		UpstreamClientID:   config.UpstreamClientId,
 	}
 }
 
-var _, _, _ codectypes.UnpackInterfacesMessage = (*ProverConfig)(nil), (*UpstreamConfig)(nil), (*DownstreamConfig)(nil)
+var _, _ codectypes.UnpackInterfacesMessage = (*ProverConfig)(nil), (*ProxyConfig)(nil)
 
 func (cfg *ProverConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
 	if cfg == nil {
@@ -94,20 +86,7 @@ func (cfg *ProverConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error
 	return nil
 }
 
-func (cfg *UpstreamConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
-	if cfg == nil {
-		return nil
-	}
-	if err := unpacker.UnpackAny(cfg.ProxyChain, new(ProxyChainConfigI)); err != nil {
-		return err
-	}
-	if err := unpacker.UnpackAny(cfg.ProxyChainProver, new(ProxyChainProverConfigI)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (cfg *DownstreamConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
+func (cfg *ProxyConfig) UnpackInterfaces(unpacker codectypes.AnyUnpacker) error {
 	if cfg == nil {
 		return nil
 	}

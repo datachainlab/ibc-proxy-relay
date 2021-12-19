@@ -20,7 +20,6 @@ import (
 	"github.com/datachainlab/ibc-proxy-relay/pkg/proxy"
 	ibcproxytypes "github.com/datachainlab/ibc-proxy/modules/proxy/types"
 	"github.com/hyperledger-labs/yui-relayer/chains/tendermint"
-	"github.com/hyperledger-labs/yui-relayer/core"
 )
 
 var _ proxy.ProxyChainConfigI = (*ProxyChainConfig)(nil)
@@ -35,7 +34,7 @@ func (c *ProxyChainConfig) Build() (proxy.ProxyChainI, error) {
 
 type TendermintProxyChain struct {
 	*tendermint.Chain
-	proxyPath proxy.ProxyPath
+	upstreamPathEnd proxy.ProxyPathEnd
 }
 
 var _ proxy.ProxyChainI = (*TendermintProxyChain)(nil)
@@ -44,20 +43,8 @@ func NewTendermintProxyChain(chain *tendermint.Chain) *TendermintProxyChain {
 	return &TendermintProxyChain{Chain: chain}
 }
 
-func (c *TendermintProxyChain) SetProxyPath(path proxy.ProxyPath) {
-	c.proxyPath = path
-}
-
-func (c *TendermintProxyChain) ProxyPath() proxy.ProxyPath {
-	return c.proxyPath
-}
-
-func (c *TendermintProxyChain) upstreamPathEnd() *core.PathEnd {
-	return c.ProxyPath().UpstreamChain.Path()
-}
-
-func (c *TendermintProxyChain) upstreamClientID() string {
-	return c.ProxyPath().UpstreamClientID
+func (c *TendermintProxyChain) SetUpstreamPathEnd(path proxy.ProxyPathEnd) {
+	c.upstreamPathEnd = path
 }
 
 func (p *TendermintProxyChain) upstreamPrefix() *commitmenttypes.MerklePrefix {
@@ -66,19 +53,19 @@ func (p *TendermintProxyChain) upstreamPrefix() *commitmenttypes.MerklePrefix {
 }
 
 func (c *TendermintProxyChain) QueryProxyClientState(height int64) (*clienttypes.QueryClientStateResponse, error) {
-	return c.ABCIQueryProxyClientState(height, c.upstreamPathEnd().ClientID, false)
+	return c.ABCIQueryProxyClientState(height, c.upstreamPathEnd.ClientID(), false)
 }
 
 func (c *TendermintProxyChain) QueryProxyClientConsensusState(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
-	return c.ABCIQueryProxyConsensusState(height, c.upstreamPathEnd().ClientID, dstClientConsHeight, false)
+	return c.ABCIQueryProxyConsensusState(height, c.upstreamPathEnd.ClientID(), dstClientConsHeight, false)
 }
 
 func (c *TendermintProxyChain) QueryProxyConnectionState(height int64) (*connectiontypes.QueryConnectionResponse, error) {
-	return c.ABCIQueryProxyConnection(height, c.upstreamPathEnd().ConnectionID, false)
+	return c.ABCIQueryProxyConnection(height, c.upstreamPathEnd.ConnectionID(), false)
 }
 
 func (c *TendermintProxyChain) QueryProxyChannel(height int64) (chanRes *chantypes.QueryChannelResponse, err error) {
-	return c.ABCIQueryProxyChannel(height, c.upstreamPathEnd().PortID, c.upstreamPathEnd().ChannelID, false)
+	return c.ABCIQueryProxyChannel(height, c.upstreamPathEnd.PortID(), c.upstreamPathEnd.ChannelID(), false)
 }
 
 func (c *TendermintProxyChain) QueryProxyPacketCommitment(height int64, seq uint64) (comRes *chantypes.QueryPacketCommitmentResponse, err error) {
@@ -129,7 +116,7 @@ func (c *TendermintProxyChain) ABCIQueryProxy(height int64, key []byte, prove bo
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyClientState(height int64, clientID string, prove bool) (*clienttypes.QueryClientStateResponse, error) {
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyClientStateKey(c.upstreamPrefix(), c.upstreamClientID(), clientID), prove)
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyClientStateKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, clientID), prove)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +137,7 @@ func (c *TendermintProxyChain) ABCIQueryProxyClientState(height int64, clientID 
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyConsensusState(height int64, clientID string, dstClientConsHeight ibcexported.Height, prove bool) (*clienttypes.QueryConsensusStateResponse, error) {
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyConsensusStateKey(c.upstreamPrefix(), c.upstreamClientID(), clientID, dstClientConsHeight), prove)
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyConsensusStateKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, clientID, dstClientConsHeight), prove)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +158,7 @@ func (c *TendermintProxyChain) ABCIQueryProxyConsensusState(height int64, client
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyConnection(height int64, connectionID string, prove bool) (*connectiontypes.QueryConnectionResponse, error) {
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyConnectionKey(c.upstreamPrefix(), c.upstreamClientID(), connectionID), prove)
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyConnectionKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, connectionID), prove)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +175,7 @@ func (c *TendermintProxyChain) ABCIQueryProxyConnection(height int64, connection
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyChannel(height int64, portID string, channelID string, prove bool) (*channeltypes.QueryChannelResponse, error) {
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyChannelKey(c.upstreamPrefix(), c.upstreamClientID(), portID, channelID), prove)
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyChannelKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, portID, channelID), prove)
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +192,8 @@ func (c *TendermintProxyChain) ABCIQueryProxyChannel(height int64, portID string
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyPacketCommitment(height int64, seq uint64, prove bool) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {
-	portID, channelID := c.upstreamPathEnd().PortID, c.upstreamPathEnd().ChannelID
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyPacketCommitmentKey(c.upstreamPrefix(), c.upstreamClientID(), portID, channelID, seq), prove)
+	portID, channelID := c.upstreamPathEnd.PortId, c.upstreamPathEnd.ChannelId
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyPacketCommitmentKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, portID, channelID, seq), prove)
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +204,8 @@ func (c *TendermintProxyChain) ABCIQueryProxyPacketCommitment(height int64, seq 
 }
 
 func (c *TendermintProxyChain) ABCIQueryProxyPacketAcknowledgementCommitment(height int64, seq uint64, prove bool) (*channeltypes.QueryPacketAcknowledgementResponse, error) {
-	portID, channelID := c.upstreamPathEnd().PortID, c.upstreamPathEnd().ChannelID
-	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyAcknowledgementKey(c.upstreamPrefix(), c.upstreamClientID(), portID, channelID, seq), prove)
+	portID, channelID := c.upstreamPathEnd.PortId, c.upstreamPathEnd.ChannelId
+	value, proof, proofHeight, err := c.ABCIQueryProxy(height, ibcproxytypes.ProxyAcknowledgementKey(c.upstreamPrefix(), c.upstreamPathEnd.UpstreamClientId, portID, channelID, seq), prove)
 	if err != nil {
 		return nil, err
 	}

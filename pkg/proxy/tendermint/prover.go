@@ -52,7 +52,7 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 	ibcPrefix := commitmenttypes.NewMerklePrefix([]byte(host.StoreKey))
 	proxyPrefix := commitmenttypes.NewMerklePrefix([]byte(ibcproxytypes.StoreKey))
 	clientState := &proxytypes.ClientState{
-		UpstreamClientId: p.proxyChain.upstreamClientID(),
+		UpstreamClientId: p.proxyChain.upstreamPathEnd.UpstreamClientId,
 		ProxyClientState: msg.ClientState,
 		IbcPrefix:        &ibcPrefix,
 		ProxyPrefix:      &proxyPrefix,
@@ -75,19 +75,19 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 }
 
 func (p *ProxyChainProver) QueryProxyClientStateWithProof(height int64) (*clienttypes.QueryClientStateResponse, error) {
-	return p.proxyChain.ABCIQueryProxyClientState(height, p.proxyChain.upstreamPathEnd().ClientID, true)
+	return p.proxyChain.ABCIQueryProxyClientState(height, p.proxyChain.upstreamPathEnd.ClientId, true)
 }
 
 func (p *ProxyChainProver) QueryProxyClientConsensusStateWithProof(height int64, dstClientConsHeight ibcexported.Height) (*clienttypes.QueryConsensusStateResponse, error) {
-	return p.proxyChain.ABCIQueryProxyConsensusState(height, p.proxyChain.upstreamPathEnd().ClientID, dstClientConsHeight, true)
+	return p.proxyChain.ABCIQueryProxyConsensusState(height, p.proxyChain.upstreamPathEnd.ClientId, dstClientConsHeight, true)
 }
 
 func (p *ProxyChainProver) QueryProxyConnectionStateWithProof(height int64) (*connectiontypes.QueryConnectionResponse, error) {
-	return p.proxyChain.ABCIQueryProxyConnection(height, p.proxyChain.upstreamPathEnd().ConnectionID, true)
+	return p.proxyChain.ABCIQueryProxyConnection(height, p.proxyChain.upstreamPathEnd.ConnectionId, true)
 }
 
 func (p *ProxyChainProver) QueryProxyChannelWithProof(height int64) (chanRes *channeltypes.QueryChannelResponse, err error) {
-	return p.proxyChain.ABCIQueryProxyChannel(height, p.proxyChain.upstreamPathEnd().PortID, p.proxyChain.upstreamPathEnd().ChannelID, true)
+	return p.proxyChain.ABCIQueryProxyChannel(height, p.proxyChain.upstreamPathEnd.PortId, p.proxyChain.upstreamPathEnd.ChannelId, true)
 }
 
 func (p *ProxyChainProver) QueryProxyPacketCommitmentWithProof(height int64, seq uint64) (comRes *channeltypes.QueryPacketCommitmentResponse, err error) {

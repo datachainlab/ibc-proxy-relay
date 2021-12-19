@@ -31,8 +31,7 @@
         "prover_config": {
           "trusting_period": "336h"
         }
-      },
-      "upstream_client_id": "07-tendermint-0"
+      }
     }
   }
 }

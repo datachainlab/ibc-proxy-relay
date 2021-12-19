@@ -27,7 +27,7 @@ var (
 )
 
 type ProxySynchronizer struct {
-	path            *core.PathEnd
+	path            *ProxyPathEnd
 	upstream        *core.ProvableChain
 	upstreamProxy   *UpstreamProxy
 	downstreamProxy *DownstreamProxy
@@ -45,7 +45,7 @@ func NewProxySynchronizer(
 	}
 }
 
-func (ps *ProxySynchronizer) SetPath(path *core.PathEnd) {
+func (ps *ProxySynchronizer) SetPath(path *ProxyPathEnd) {
 	ps.path = path
 }
 
@@ -160,7 +160,7 @@ func (ps ProxySynchronizer) SyncCreateClient() error {
 	if err != nil {
 		return err
 	}
-	proxyMsg, err := ps.upstream.CreateMsgCreateClient(ps.upstreamProxy.ProxyPath().UpstreamClientID, header, signer)
+	proxyMsg, err := ps.upstream.CreateMsgCreateClient(ps.upstreamClientID(), header, signer)
 	if err != nil {
 		return err
 	}
@@ -192,9 +192,9 @@ func (ps ProxySynchronizer) SyncClientState() error {
 	var proxyMsg *proxytypes.MsgProxyClientState
 	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyClientState{
-			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamClientId:     ps.upstreamClientID(),
 			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-			CounterpartyClientId: ps.path.ClientID,
+			CounterpartyClientId: ps.path.ClientID(),
 			ClientState:          clientRes.ClientState,
 			ConsensusState:       consensusRes.ConsensusState,
 			ProofClient:          clientRes.Proof,
@@ -233,9 +233,9 @@ func (ps ProxySynchronizer) SyncClientState() error {
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyClientState{
-			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamClientId:     ps.upstreamClientID(),
 			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-			CounterpartyClientId: ps.path.ClientID,
+			CounterpartyClientId: ps.path.ClientID(),
 			ClientState:          proxyClientRes.ClientState,
 			ConsensusState:       proxyConsensusRes.ConsensusState,
 			ProofClient:          proofClient,
@@ -282,12 +282,12 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenTry
 	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+			ConnectionId:     ps.path.ConnectionID(),
+			UpstreamClientId: ps.upstreamClientID(),
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.INIT,
-				ps.path.ClientID,
+				ps.path.ClientID(),
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
@@ -330,12 +330,12 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+			ConnectionId:     ps.path.ConnectionID(),
+			UpstreamClientId: ps.upstreamClientID(),
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.INIT,
-				ps.path.ClientID,
+				ps.path.ClientID(),
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
@@ -387,12 +387,12 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenAck
 	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+			ConnectionId:     ps.path.ConnectionID(),
+			UpstreamClientId: ps.upstreamClientID(),
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.TRYOPEN,
-				ps.path.ClientID,
+				ps.path.ClientID(),
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
@@ -436,12 +436,12 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+			ConnectionId:     ps.path.ConnectionID(),
+			UpstreamClientId: ps.upstreamClientID(),
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.TRYOPEN,
-				ps.path.ClientID,
+				ps.path.ClientID(),
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
@@ -479,12 +479,12 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
-		ConnectionId:     ps.path.ConnectionID,
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+		ConnectionId:     ps.path.ConnectionID(),
+		UpstreamClientId: ps.upstreamClientID(),
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Connection: connectiontypes.NewConnectionEnd(
 			connectiontypes.OPEN,
-			ps.path.ClientID,
+			ps.path.ClientID(),
 			connectiontypes.Counterparty{
 				ClientId:     connRes.Connection.Counterparty.ClientId,
 				ConnectionId: counterpartyConnectionID,
@@ -520,12 +520,12 @@ func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyChannelOpenTry{
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId: ps.upstreamClientID(),
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Order:            chanRes.Channel.Ordering,
 		ConnectionHops:   chanRes.Channel.ConnectionHops,
-		PortId:           ps.path.PortID,
-		ChannelId:        ps.path.ChannelID,
+		PortId:           ps.path.PortID(),
+		ChannelId:        ps.path.ChannelID(),
 		DownstreamPortId: chanRes.Channel.Counterparty.PortId,
 		Version:          chanRes.Channel.Version,
 		ProofInit:        chanRes.Proof,
@@ -556,12 +556,12 @@ func (ps ProxySynchronizer) SyncChannelOpenTry() error {
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyChannelOpenAck{
-		UpstreamClientId:    ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId:    ps.upstreamClientID(),
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Order:               chanRes.Channel.Ordering,
 		ConnectionHops:      chanRes.Channel.ConnectionHops,
-		PortId:              ps.path.PortID,
-		ChannelId:           ps.path.ChannelID,
+		PortId:              ps.path.PortID(),
+		ChannelId:           ps.path.ChannelID(),
 		DownstreamPortId:    chanRes.Channel.Counterparty.PortId,
 		DownstreamChannelId: chanRes.Channel.Counterparty.ChannelId,
 		Version:             chanRes.Channel.Version,
@@ -593,10 +593,10 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyChannelOpenConfirm{
-		UpstreamClientId:    ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId:    ps.upstreamClientID(),
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-		PortId:              ps.path.PortID,
-		ChannelId:           ps.path.ChannelID,
+		PortId:              ps.path.PortID(),
+		ChannelId:           ps.path.ChannelID(),
 		DownstreamChannelId: chanRes.Channel.Counterparty.ChannelId,
 		ProofAck:            chanRes.Proof,
 		ProofHeight:         chanRes.ProofHeight,
@@ -628,7 +628,7 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyAcknowledgePacket{
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId: ps.upstreamClientID(),
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Packet:           packet,
 		Acknowledgement:  ack,
@@ -640,6 +640,10 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 		return err
 	}
 	return nil
+}
+
+func (ps ProxySynchronizer) upstreamClientID() string {
+	return ps.upstream.Path().(*ProxyPathEnd).UpstreamClientId
 }
 
 // updateProxyUpstreamClient updates the upstream client on the proxy
@@ -661,7 +665,7 @@ func (ps ProxySynchronizer) updateProxyUpstreamClient() (int64, error) {
 			return 0, err
 		}
 		_, err = ps.upstreamProxy.SendMsgs(
-			[]sdk.Msg{ps.upstreamProxy.Path().UpdateClient(header, addr)},
+			[]sdk.Msg{core.UpdateClient(ps.upstreamProxy.Path(), header, addr)},
 		)
 		if err != nil {
 			return 0, err

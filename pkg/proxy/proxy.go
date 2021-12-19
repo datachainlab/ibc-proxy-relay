@@ -30,11 +30,11 @@ func (pc *ProxyProvableChain) Init(homePath string, timeout time.Duration, codec
 	return nil
 }
 
-func (pc *ProxyProvableChain) SetPath(path *core.PathEnd) error {
+func (pc *ProxyProvableChain) SetPath(path core.PathEndI) error {
 	if err := pc.ProxyChainI.SetPath(path); err != nil {
 		return err
 	}
-	if err := pc.ProxyChainI.SetPath(path); err != nil {
+	if err := pc.ProxyChainProverI.SetPath(path); err != nil {
 		return err
 	}
 	return nil
@@ -44,13 +44,7 @@ type ProxyChainI interface {
 	core.ChainI
 	ProxyChainQueryierI
 
-	SetProxyPath(ProxyPath)
-	ProxyPath() ProxyPath
-}
-
-type ProxyPath struct {
-	UpstreamClientID string
-	UpstreamChain    core.ChainI
+	SetUpstreamPathEnd(ProxyPathEnd)
 }
 
 type ProxyChainQueryierI interface {

@@ -1,0 +1,19 @@
+syntax = "proto3";
+package ibc.proxy.prover.v1;
+
+option go_package = "github.com/datachainlab/ibc-proxy-relay/pkg/proxy";
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
+
+message ProxyPathEnd {
+  string chain_id = 1;
+  string client_id = 2;
+  string connection_id = 3;
+  string channel_id = 4;
+  string port_id = 5;
+  string order = 6;
+  string version = 7;
+  string upstream_client_id = 8;
+  string counterparty_upstream_client_id = 9;
+}

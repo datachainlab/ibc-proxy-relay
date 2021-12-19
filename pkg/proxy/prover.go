@@ -27,8 +27,7 @@ type Prover struct {
 	upstreamProxy   *UpstreamProxy
 	downstreamProxy *DownstreamProxy
 
-	path *core.PathEnd
-
+	path              *ProxyPathEnd
 	proxySynchronizer *ProxySynchronizer
 }
 
@@ -36,7 +35,7 @@ var (
 	_ core.ProverI = (*Prover)(nil)
 )
 
-func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamConfig, downstreamConfig *DownstreamConfig) (*Prover, error) {
+func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *ProxyConfig, downstreamConfig *ProxyConfig) (*Prover, error) {
 	if upstreamConfig == nil && downstreamConfig == nil {
 		return nil, fmt.Errorf("either upstream or downstream must be not nil")
 	} else if downstreamConfig != nil {
@@ -45,30 +44,10 @@ func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamC
 	pr := &Prover{
 		chain:           chain,
 		prover:          prover,
-		upstreamProxy:   NewUpstreamProxy(upstreamConfig, chain),
-		downstreamProxy: NewDownstreamProxy(downstreamConfig, chain),
-	}
-	if pr.downstreamProxy != nil {
-		pr.downstreamProxy.SetPath(&core.PathEnd{
-			ChainID:      pr.downstreamProxy.ChainID(),
-			ClientID:     pr.downstreamProxy.UpstreamClientID,
-			ConnectionID: "connection-0",
-			ChannelID:    "channel-0",
-			PortID:       "transfer",
-			Order:        "unordered",
-			Version:      "ics20-1",
-		})
+		upstreamProxy:   NewUpstreamProxy(upstreamConfig),
+		downstreamProxy: NewDownstreamProxy(downstreamConfig),
 	}
 	if pr.upstreamProxy != nil {
-		pr.upstreamProxy.SetPath(&core.PathEnd{
-			ChainID:      pr.upstreamProxy.ChainID(),
-			ClientID:     pr.upstreamProxy.UpstreamClientID,
-			ConnectionID: "connection-0",
-			ChannelID:    "channel-0",
-			PortID:       "transfer",
-			Order:        "unordered",
-			Version:      "ics20-1",
-		})
 		pr.proxySynchronizer = NewProxySynchronizer(core.NewProvableChain(pr.chain, pr.prover), pr.upstreamProxy, pr.downstreamProxy)
 		pr.chain.RegisterMsgEventListener(NewProxyUpdater(pr.proxySynchronizer))
 	}
@@ -76,10 +55,34 @@ func NewProver(chain core.ChainI, prover core.ProverI, upstreamConfig *UpstreamC
 }
 
 // SetPath sets a given path to the chain
-func (pr *Prover) SetPath(p *core.PathEnd) error {
-	pr.path = p
+func (pr *Prover) SetPath(p core.PathEndI) error {
+	pe, ok := p.(*ProxyPathEnd)
+	if !ok {
+		return fmt.Errorf("unexpected type: %T", p)
+	}
+	pr.path = pe
+	if err := pr.chain.SetPath(p); err != nil {
+		return err
+	}
+	if pr.downstreamProxy != nil {
+		if err := pr.downstreamProxy.SetPath(&clientPathEnd{
+			ChainId:  pr.downstreamProxy.ChainID(),
+			ClientId: pe.CounterpartyUpstreamClientId,
+		}); err != nil {
+			return err
+		}
+	}
+	if pr.upstreamProxy != nil {
+		if err := pr.upstreamProxy.SetPath(&clientPathEnd{
+			ChainId:  pr.upstreamProxy.ChainID(),
+			ClientId: pe.UpstreamClientId,
+		}); err != nil {
+			return err
+		}
+		pr.upstreamProxy.SetUpstreamPathEnd(*pe)
+	}
 	if pr.proxySynchronizer != nil {
-		pr.proxySynchronizer.SetPath(p)
+		pr.proxySynchronizer.SetPath(pe)
 	}
 	return nil
 }
@@ -283,7 +286,7 @@ func (pr *Prover) QueryPacketCommitmentWithProof(height int64, seq uint64) (comR
 			return nil, err
 		}
 		proxyMsg := &proxytypes.MsgProxyRecvPacket{
-			UpstreamClientId: pr.upstreamProxy.UpstreamClientID,
+			UpstreamClientId: pr.path.UpstreamClientId,
 			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Packet:           *packet,
 			Proof:            pcRes.Proof,

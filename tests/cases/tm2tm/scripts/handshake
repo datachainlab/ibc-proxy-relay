@@ -24,7 +24,7 @@ retry 5 $RLY proxy-tendermint light init $CHAINID_TWO -f
 retry 5 $RLY proxy-tendermint light init $CHAINID_PROXY -f
 
 # add a path between chain0 and chain1
-$RLY paths add $CHAINID_ONE $CHAINID_TWO $PATH_NAME --file=./configs/path.json
+$RLY paths add $PATH_NAME --file=./configs/path.json
 
 retry 5 $RLY tx clients $PATH_NAME
 retry 5 $RLY proxy update-client $PATH_NAME $CHAINID_TWO

@@ -12,4 +12,8 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		(*core.ProverConfigI)(nil),
 		&ProverConfig{},
 	)
+	registry.RegisterImplementations(
+		(*core.PathEndI)(nil),
+		&ProxyPathEnd{},
+	)
 }

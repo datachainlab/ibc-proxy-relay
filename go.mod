@@ -12,9 +12,8 @@ require (
 	github.com/cosmos/cosmos-sdk v0.43.0-beta1
 	github.com/cosmos/ibc-go v1.0.0-beta1
 	github.com/datachainlab/ibc-proxy v0.0.0-20211216053654-43b54f292c56
-	github.com/gin-gonic/gin v1.7.0 // indirect
 	github.com/gogo/protobuf v1.3.3
-	github.com/hyperledger-labs/yui-relayer v0.1.1-0.20211201082514-122526148f85
+	github.com/hyperledger-labs/yui-relayer v0.1.1-0.20211206093912-53858db80d32
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.7.1
 	github.com/tendermint/tendermint v0.34.10
