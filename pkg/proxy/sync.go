@@ -479,22 +479,13 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 		return err
 	}
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
-		ConnectionId:     ps.path.ConnectionID,
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
-		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-		Connection: connectiontypes.NewConnectionEnd(
-			connectiontypes.OPEN,
-			ps.path.ClientID,
-			connectiontypes.Counterparty{
-				ClientId:     connRes.Connection.Counterparty.ClientId,
-				ConnectionId: counterpartyConnectionID,
-				Prefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
-			},
-			[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
-		),
-		ProofAck:    connRes.Proof,
-		ProofHeight: connRes.ProofHeight,
-		Signer:      signer.String(),
+		ConnectionId:             ps.path.ConnectionID,
+		UpstreamClientId:         ps.upstreamProxy.UpstreamClientID,
+		UpstreamPrefix:           commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		CounterpartyConnectionId: counterpartyConnectionID,
+		ProofAck:                 connRes.Proof,
+		ProofHeight:              connRes.ProofHeight,
+		Signer:                   signer.String(),
 	}
 	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return fmt.Errorf("failed to SendMsgs: %w", err)
