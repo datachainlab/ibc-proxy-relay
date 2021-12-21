@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/cosmos/cosmos-sdk v0.43.0-beta1
 	github.com/cosmos/ibc-go v1.0.0-beta1
-	github.com/datachainlab/ibc-proxy v0.0.0-20211216053654-43b54f292c56
+	github.com/datachainlab/ibc-proxy v0.0.0-20211221015432-a8c24b85f7ba
 	github.com/gorilla/mux v1.8.0
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.3.1
