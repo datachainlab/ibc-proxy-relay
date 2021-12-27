@@ -56,7 +56,6 @@ func (p *ProxyChainProver) CreateMsgCreateClient(clientID string, dstHeader core
 		ProxyClientState: msg.ClientState,
 		IbcPrefix:        &ibcPrefix,
 		ProxyPrefix:      &proxyPrefix,
-		TrustedSetup:     true,
 	}
 	anyClientState, err := clienttypes.PackClientState(clientState)
 	if err != nil {

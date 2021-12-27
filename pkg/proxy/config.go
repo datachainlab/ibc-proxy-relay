@@ -26,12 +26,7 @@ func (pc ProverConfig) Build(chain core.ChainI) (core.ProverI, error) {
 	return NewProver(chain, prover, pc.Upstream, pc.Downstream)
 }
 
-type UpstreamProxy struct {
-	ProxyProvableChain
-	UpstreamClientID string
-}
-
-func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *UpstreamProxy {
+func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *ProxyProvableChain {
 	if config == nil {
 		return nil
 	}
@@ -47,18 +42,20 @@ func NewUpstreamProxy(config *UpstreamConfig, chain core.ChainI) *UpstreamProxy 
 	if err != nil {
 		panic(err)
 	}
-	return &UpstreamProxy{
-		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-		UpstreamClientID:   config.UpstreamClientId,
-	}
+	proxy := &ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver}
+	proxy.SetRelayInfo(&core.PathEnd{
+		ChainID:      proxy.ChainID(),
+		ClientID:     config.UpstreamClientId,
+		ConnectionID: "connection-0",
+		ChannelID:    "channel-0",
+		PortID:       "transfer",
+		Order:        "unordered",
+		Version:      "ics20-1",
+	}, nil, nil)
+	return proxy
 }
 
-type DownstreamProxy struct {
-	ProxyProvableChain
-	UpstreamClientID string
-}
-
-func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *DownstreamProxy {
+func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *ProxyProvableChain {
 	if config == nil {
 		return nil
 	}
@@ -70,10 +67,17 @@ func NewDownstreamProxy(config *DownstreamConfig, chain core.ChainI) *Downstream
 	if err != nil {
 		panic(err)
 	}
-	return &DownstreamProxy{
-		ProxyProvableChain: ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver},
-		UpstreamClientID:   config.UpstreamClientId,
-	}
+	proxy := &ProxyProvableChain{ProxyChainI: proxyChain, ProxyChainProverI: proxyChainProver}
+	proxy.SetRelayInfo(&core.PathEnd{
+		ChainID:      proxy.ChainID(),
+		ClientID:     config.UpstreamClientId,
+		ConnectionID: "connection-0",
+		ChannelID:    "channel-0",
+		PortID:       "transfer",
+		Order:        "unordered",
+		Version:      "ics20-1",
+	}, nil, nil)
+	return proxy
 }
 
 var _, _, _ codectypes.UnpackInterfacesMessage = (*ProverConfig)(nil), (*UpstreamConfig)(nil), (*DownstreamConfig)(nil)
