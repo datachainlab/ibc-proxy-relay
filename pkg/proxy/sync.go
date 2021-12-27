@@ -271,7 +271,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 	if err != nil {
 		return fmt.Errorf("failed to QueryConnectionWithProof: %w", err)
 	}
-	log.Println("onConnectionOpenInit:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -279,6 +278,8 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncConnectionOpenInit: connection=%v proof=%v", connRes.Connection, connRes.Proof)
 
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenTry
 	if ps.downstreamProxy == nil {
@@ -408,7 +409,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 	if err != nil {
 		return fmt.Errorf("failed to QueryConnectionWithProof: %w", err)
 	}
-	log.Println("onConnectionOpenTry:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -416,6 +416,8 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncConnectionOpenTry: connection=%v proof=%v", connRes.Connection, connRes.Proof)
 
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenAck
 	if ps.downstreamProxy == nil {
@@ -536,7 +538,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 	if err != nil {
 		return err
 	}
-	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -544,6 +545,9 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncConnectionOpenAck: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
 		ConnectionId:             ps.path.ConnectionID,
 		UpstreamClientId:         ps.upstreamProxy.Path().ClientID,
@@ -568,7 +572,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenConfirm() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -576,6 +579,9 @@ func (ps ProxySynchronizer) SyncConnectionOpenConfirm() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncConnectionOpenConfirm: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenFinalize{
 		ConnectionId:     ps.path.ConnectionID,
 		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
@@ -599,7 +605,6 @@ func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenInit:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -607,6 +612,9 @@ func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenInit: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenTry{
 		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
@@ -635,7 +643,6 @@ func (ps ProxySynchronizer) SyncChannelOpenTry() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenTry:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -643,6 +650,9 @@ func (ps ProxySynchronizer) SyncChannelOpenTry() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenTry: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenAck{
 		UpstreamClientId:    ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
@@ -672,7 +682,6 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenAck:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -680,6 +689,9 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenAck: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenConfirm{
 		UpstreamClientId:    ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
@@ -705,7 +717,6 @@ func (ps ProxySynchronizer) SyncChannelOpenConfirm() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenConfirm:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -713,6 +724,9 @@ func (ps ProxySynchronizer) SyncChannelOpenConfirm() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenConfirm: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenFinalize{
 		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
@@ -737,8 +751,6 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 	if err != nil {
 		return err
 	}
-	log.Println("onRecvPacket:", res.Proof, res.Acknowledgement)
-
 	ack, err := ps.upstream.QueryPacketAcknowledgement(provableHeight, packet.Sequence)
 	if err != nil {
 		return err
@@ -747,6 +759,9 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncRecvPacket: packet=%v ack=%v proof=%v", packet, res.Acknowledgement, res.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyAcknowledgePacket{
 		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
