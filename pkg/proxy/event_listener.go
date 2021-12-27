@@ -49,7 +49,10 @@ func (up ProxyUpdater) OnSentMsg(msgs []sdk.Msg) error {
 					return err
 				}
 			case *connectiontypes.MsgConnectionOpenConfirm:
-				// nop
+				err := up.synchronizer.SyncConnectionOpenConfirm()
+				if !checkSkippableConnectionError(err) {
+					return err
+				}
 			case *channeltypes.MsgChannelOpenInit:
 				return up.synchronizer.SyncChannelOpenInit()
 			case *channeltypes.MsgChannelOpenTry:
@@ -57,7 +60,7 @@ func (up ProxyUpdater) OnSentMsg(msgs []sdk.Msg) error {
 			case *channeltypes.MsgChannelOpenAck:
 				return up.synchronizer.SyncChannelOpenAck()
 			case *channeltypes.MsgChannelOpenConfirm:
-				// nop
+				return up.synchronizer.SyncChannelOpenConfirm()
 			case *channeltypes.MsgRecvPacket:
 				return up.synchronizer.SyncRecvPacket(msg.Packet)
 			case *channeltypes.MsgAcknowledgement:

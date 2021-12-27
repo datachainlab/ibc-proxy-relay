@@ -30,11 +30,11 @@ func (pc *ProxyProvableChain) Init(homePath string, timeout time.Duration, codec
 	return nil
 }
 
-func (pc *ProxyProvableChain) SetPath(path *core.PathEnd) error {
-	if err := pc.ProxyChainI.SetPath(path); err != nil {
+func (pc *ProxyProvableChain) SetRelayInfo(path *core.PathEnd, counterparty *core.ProvableChain, counterpartyPath *core.PathEnd) error {
+	if err := pc.ProxyChainI.SetRelayInfo(path, counterparty, counterpartyPath); err != nil {
 		return err
 	}
-	if err := pc.ProxyChainI.SetPath(path); err != nil {
+	if err := pc.ProxyChainProverI.SetRelayInfo(path, counterparty, counterpartyPath); err != nil {
 		return err
 	}
 	return nil

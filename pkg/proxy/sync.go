@@ -27,26 +27,27 @@ var (
 )
 
 type ProxySynchronizer struct {
-	path            *core.PathEnd
-	upstream        *core.ProvableChain
-	upstreamProxy   *UpstreamProxy
-	downstreamProxy *DownstreamProxy
+	path             *core.PathEnd
+	upstream         *core.ProvableChain
+	downstreamProver core.ProverI
+	upstreamProxy    *ProxyProvableChain
+	downstreamProxy  *ProxyProvableChain
 }
 
 func NewProxySynchronizer(
+	path *core.PathEnd,
 	upstream *core.ProvableChain,
-	upstreamProxy *UpstreamProxy,
-	downstreamProxy *DownstreamProxy,
+	downstreamProver core.ProverI,
+	upstreamProxy *ProxyProvableChain,
+	downstreamProxy *ProxyProvableChain,
 ) *ProxySynchronizer {
 	return &ProxySynchronizer{
-		upstream:        upstream,
-		upstreamProxy:   upstreamProxy,
-		downstreamProxy: downstreamProxy,
+		path:             path,
+		upstream:         upstream,
+		downstreamProver: downstreamProver,
+		upstreamProxy:    upstreamProxy,
+		downstreamProxy:  downstreamProxy,
 	}
-}
-
-func (ps *ProxySynchronizer) SetPath(path *core.PathEnd) {
-	ps.path = path
 }
 
 func (ps ProxySynchronizer) SyncALL() error {
@@ -192,7 +193,7 @@ func (ps ProxySynchronizer) SyncClientState() error {
 	var proxyMsg *proxytypes.MsgProxyClientState
 	if ps.downstreamProxy == nil {
 		proxyMsg = &proxytypes.MsgProxyClientState{
-			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamClientId:     ps.upstreamProxy.Path().ClientID,
 			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			CounterpartyClientId: ps.path.ClientID,
 			ClientState:          clientRes.ClientState,
@@ -233,7 +234,7 @@ func (ps ProxySynchronizer) SyncClientState() error {
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
 		proxyMsg = &proxytypes.MsgProxyClientState{
-			UpstreamClientId:     ps.upstreamProxy.UpstreamClientID,
+			UpstreamClientId:     ps.upstreamProxy.Path().ClientID,
 			UpstreamPrefix:       commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			CounterpartyClientId: ps.path.ClientID,
 			ClientState:          proxyClientRes.ClientState,
@@ -270,7 +271,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 	if err != nil {
 		return fmt.Errorf("failed to QueryConnectionWithProof: %w", err)
 	}
-	log.Println("onConnectionOpenInit:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -279,26 +279,44 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 		return err
 	}
 
+	log.Printf("SyncConnectionOpenInit: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenTry
 	if ps.downstreamProxy == nil {
+		downstreamClientRes, err := ps.downstreamProver.QueryClientStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight()) - 1)
+		if err != nil {
+			return err
+		}
+		lc := downstreamClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+		downstreamConsensusRes, err := ps.downstreamProver.QueryClientConsensusStateWithProof(
+			int64(clientState.GetLatestHeight().GetRevisionHeight())-1,
+			lc.GetLatestHeight(),
+		)
+		if err != nil {
+			return err
+		}
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
-			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			ConnectionId:   ps.path.ConnectionID,
+			UpstreamPrefix: commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.INIT,
 				ps.path.ClientID,
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
-			ClientState:     clientRes.ClientState,
-			ConsensusState:  consensusRes.ConsensusState,
-			ProofInit:       connRes.Proof,
-			ProofClient:     clientRes.Proof,
-			ProofConsensus:  consensusRes.Proof,
-			ProofHeight:     clientRes.ProofHeight,
-			ConsensusHeight: consensusHeight.(clienttypes.Height),
-			Signer:          signer.String(),
+			DownstreamClientState:    clientRes.ClientState,
+			DownstreamConsensusState: consensusRes.ConsensusState,
+			ProxyClientState:         downstreamClientRes.ClientState,
+			ProofInit:                connRes.Proof,
+			ProofClient:              clientRes.Proof,
+			ProofConsensus:           consensusRes.Proof,
+			ProofHeight:              clientRes.ProofHeight,
+			ConsensusHeight:          consensusHeight.(clienttypes.Height),
+			ProofProxyClient:         downstreamClientRes.Proof,
+			ProofProxyConsensus:      downstreamConsensusRes.Proof,
+			ProofProxyHeight:         downstreamClientRes.ProofHeight,
+			ProxyConsensusHeight:     lc.GetLatestHeight().(clienttypes.Height),
+			Signer:                   signer.String(),
 		}
 	} else {
 		head := &multivtypes.Proof{
@@ -329,24 +347,40 @@ func (ps ProxySynchronizer) SyncConnectionOpenInit(connCP connectiontypes.Counte
 		}
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
+		downstreamClientRes, err := ps.downstreamProver.QueryClientStateWithProof(
+			int64(lc.GetLatestHeight().GetRevisionHeight()) - 1,
+		)
+		if err != nil {
+			return err
+		}
+		lc2 := downstreamClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+		downstreamConsensusRes, err := ps.downstreamProver.QueryClientConsensusStateWithProof(
+			int64(lc.GetLatestHeight().GetRevisionHeight())-1,
+			lc2.GetLatestHeight(),
+		)
+
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenTry{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
-			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			ConnectionId:   ps.path.ConnectionID,
+			UpstreamPrefix: commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.INIT,
 				ps.path.ClientID,
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
-			ClientState:     proxyClientRes.ClientState,
-			ConsensusState:  proxyConsensusRes.ConsensusState,
-			ProofInit:       connRes.Proof,
-			ProofClient:     proofClient,
-			ProofConsensus:  proofConsensus,
-			ProofHeight:     connRes.ProofHeight,
-			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
-			Signer:          signer.String(),
+			DownstreamClientState:    proxyClientRes.ClientState,
+			DownstreamConsensusState: proxyConsensusRes.ConsensusState,
+			ProxyClientState:         downstreamClientRes.ClientState,
+			ProofInit:                connRes.Proof,
+			ProofClient:              proofClient,
+			ProofConsensus:           proofConsensus,
+			ProofHeight:              connRes.ProofHeight,
+			ConsensusHeight:          lc.GetLatestHeight().(clienttypes.Height),
+			ProofProxyClient:         downstreamClientRes.Proof,
+			ProofProxyConsensus:      downstreamConsensusRes.Proof,
+			ProofProxyHeight:         lc.GetLatestHeight().(clienttypes.Height),
+			ProxyConsensusHeight:     lc2.GetLatestHeight().(clienttypes.Height),
+			Signer:                   signer.String(),
 		}
 	}
 
@@ -375,7 +409,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 	if err != nil {
 		return fmt.Errorf("failed to QueryConnectionWithProof: %w", err)
 	}
-	log.Println("onConnectionOpenTry:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -384,26 +417,45 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 		return err
 	}
 
+	log.Printf("SyncConnectionOpenTry: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
 	var proxyMsg *proxytypes.MsgProxyConnectionOpenAck
 	if ps.downstreamProxy == nil {
+		downstreamClientRes, err := ps.downstreamProver.QueryClientStateWithProof(int64(clientState.GetLatestHeight().GetRevisionHeight()) - 1)
+		if err != nil {
+			return err
+		}
+		lc := downstreamClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+		downstreamConsensusRes, err := ps.downstreamProver.QueryClientConsensusStateWithProof(
+			int64(clientState.GetLatestHeight().GetRevisionHeight())-1,
+			lc.GetLatestHeight(),
+		)
+		if err != nil {
+			return err
+		}
+
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
-			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			ConnectionId:   ps.path.ConnectionID,
+			UpstreamPrefix: commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.TRYOPEN,
 				ps.path.ClientID,
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
-			ClientState:     clientRes.ClientState,
-			ConsensusState:  consensusRes.ConsensusState,
-			ProofTry:        connRes.Proof,
-			ProofClient:     clientRes.Proof,
-			ProofConsensus:  consensusRes.Proof,
-			ProofHeight:     clientRes.ProofHeight,
-			ConsensusHeight: consensusHeight.(clienttypes.Height),
-			Signer:          signer.String(),
+			DownstreamClientState:    clientRes.ClientState,
+			DownstreamConsensusState: consensusRes.ConsensusState,
+			ProxyClientState:         downstreamClientRes.ClientState,
+			ProofTry:                 connRes.Proof,
+			ProofClient:              clientRes.Proof,
+			ProofConsensus:           consensusRes.Proof,
+			ProofHeight:              clientRes.ProofHeight,
+			ConsensusHeight:          consensusHeight.(clienttypes.Height),
+			ProofProxyClient:         downstreamClientRes.Proof,
+			ProofProxyConsensus:      downstreamConsensusRes.Proof,
+			ProofProxyHeight:         downstreamClientRes.ProofHeight,
+			ProxyConsensusHeight:     lc.GetLatestHeight().(clienttypes.Height),
+			Signer:                   signer.String(),
 		}
 	} else {
 		head := &multivtypes.Proof{
@@ -435,24 +487,40 @@ func (ps ProxySynchronizer) SyncConnectionOpenTry(connCP connectiontypes.Counter
 		}
 		proofConsensus := makeMultiProof(ps.upstream.Codec(), head, nil, leafConsensus)
 
+		downstreamClientRes, err := ps.downstreamProver.QueryClientStateWithProof(
+			int64(lc.GetLatestHeight().GetRevisionHeight()) - 1,
+		)
+		if err != nil {
+			return err
+		}
+		lc2 := downstreamClientRes.ClientState.GetCachedValue().(ibcexported.ClientState)
+		downstreamConsensusRes, err := ps.downstreamProver.QueryClientConsensusStateWithProof(
+			int64(lc.GetLatestHeight().GetRevisionHeight())-1,
+			lc2.GetLatestHeight(),
+		)
+
 		proxyMsg = &proxytypes.MsgProxyConnectionOpenAck{
-			ConnectionId:     ps.path.ConnectionID,
-			UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
-			UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+			ConnectionId:   ps.path.ConnectionID,
+			UpstreamPrefix: commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 			Connection: connectiontypes.NewConnectionEnd(
 				connectiontypes.TRYOPEN,
 				ps.path.ClientID,
 				connCP,
 				[]*connectiontypes.Version{ConnectionVersion}, DefaultDelayPeriod,
 			),
-			ClientState:     proxyClientRes.ClientState,
-			ConsensusState:  proxyConsensusRes.ConsensusState,
-			ProofTry:        connRes.Proof,
-			ProofClient:     proofClient,
-			ProofConsensus:  proofConsensus,
-			ProofHeight:     connRes.ProofHeight,
-			ConsensusHeight: lc.GetLatestHeight().(clienttypes.Height),
-			Signer:          signer.String(),
+			DownstreamClientState:    proxyClientRes.ClientState,
+			DownstreamConsensusState: proxyConsensusRes.ConsensusState,
+			ProxyClientState:         downstreamClientRes.ClientState,
+			ProofTry:                 connRes.Proof,
+			ProofClient:              proofClient,
+			ProofConsensus:           proofConsensus,
+			ProofHeight:              connRes.ProofHeight,
+			ConsensusHeight:          lc.GetLatestHeight().(clienttypes.Height),
+			ProofProxyClient:         downstreamClientRes.Proof,
+			ProofProxyConsensus:      downstreamConsensusRes.Proof,
+			ProofProxyHeight:         lc.GetLatestHeight().(clienttypes.Height),
+			ProxyConsensusHeight:     lc2.GetLatestHeight().(clienttypes.Height),
+			Signer:                   signer.String(),
 		}
 	}
 	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
@@ -470,7 +538,6 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 	if err != nil {
 		return err
 	}
-	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
 	if len(connRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
 	}
@@ -478,14 +545,50 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncConnectionOpenAck: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyConnectionOpenConfirm{
 		ConnectionId:             ps.path.ConnectionID,
-		UpstreamClientId:         ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId:         ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:           commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		CounterpartyConnectionId: counterpartyConnectionID,
 		ProofAck:                 connRes.Proof,
 		ProofHeight:              connRes.ProofHeight,
 		Signer:                   signer.String(),
+	}
+	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return fmt.Errorf("failed to SendMsgs: %w", err)
+	}
+	return nil
+}
+
+func (ps ProxySynchronizer) SyncConnectionOpenConfirm() error {
+	provableHeight, err := ps.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	connRes, err := ps.upstream.QueryConnectionWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	if len(connRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
+	}
+	signer, err := ps.upstreamProxy.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("SyncConnectionOpenConfirm: connection=%v proof=%v", connRes.Connection, connRes.Proof)
+
+	proxyMsg := &proxytypes.MsgProxyConnectionOpenFinalize{
+		ConnectionId:     ps.path.ConnectionID,
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		ProofConfirm:     connRes.Proof,
+		ProofHeight:      connRes.ProofHeight,
+		Signer:           signer.String(),
 	}
 	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return fmt.Errorf("failed to SendMsgs: %w", err)
@@ -502,7 +605,6 @@ func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenInit:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -510,8 +612,11 @@ func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenInit: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenTry{
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Order:            chanRes.Channel.Ordering,
 		ConnectionHops:   chanRes.Channel.ConnectionHops,
@@ -538,7 +643,6 @@ func (ps ProxySynchronizer) SyncChannelOpenTry() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenTry:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -546,8 +650,11 @@ func (ps ProxySynchronizer) SyncChannelOpenTry() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenTry: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenAck{
-		UpstreamClientId:    ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId:    ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Order:               chanRes.Channel.Ordering,
 		ConnectionHops:      chanRes.Channel.ConnectionHops,
@@ -575,7 +682,6 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 	if err != nil {
 		return err
 	}
-	log.Println("onChannelOpenAck:", chanRes.Proof, chanRes.Channel)
 	if len(chanRes.Proof) == 0 {
 		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
 	}
@@ -583,8 +689,11 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncChannelOpenAck: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyChannelOpenConfirm{
-		UpstreamClientId:    ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId:    ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:      commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		PortId:              ps.path.PortID,
 		ChannelId:           ps.path.ChannelID,
@@ -592,6 +701,40 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 		ProofAck:            chanRes.Proof,
 		ProofHeight:         chanRes.ProofHeight,
 		Signer:              signer.String(),
+	}
+	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ps ProxySynchronizer) SyncChannelOpenConfirm() error {
+	provableHeight, err := ps.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	chanRes, err := ps.upstream.QueryChannelWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	if len(chanRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
+	}
+	signer, err := ps.upstreamProxy.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("SyncChannelOpenConfirm: channel=%v proof=%v", chanRes.Channel, chanRes.Proof)
+
+	proxyMsg := &proxytypes.MsgProxyChannelOpenFinalize{
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		PortId:           ps.path.PortID,
+		ChannelId:        ps.path.ChannelID,
+		ProofConfirm:     chanRes.Proof,
+		ProofHeight:      chanRes.ProofHeight,
+		Signer:           signer.String(),
 	}
 	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
 		return err
@@ -608,8 +751,6 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 	if err != nil {
 		return err
 	}
-	log.Println("onRecvPacket:", res.Proof, res.Acknowledgement)
-
 	ack, err := ps.upstream.QueryPacketAcknowledgement(provableHeight, packet.Sequence)
 	if err != nil {
 		return err
@@ -618,8 +759,11 @@ func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 	if err != nil {
 		return err
 	}
+
+	log.Printf("SyncRecvPacket: packet=%v ack=%v proof=%v", packet, res.Acknowledgement, res.Proof)
+
 	proxyMsg := &proxytypes.MsgProxyAcknowledgePacket{
-		UpstreamClientId: ps.upstreamProxy.UpstreamClientID,
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
 		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
 		Packet:           packet,
 		Acknowledgement:  ack,
