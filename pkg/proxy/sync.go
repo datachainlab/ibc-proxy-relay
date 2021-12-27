@@ -559,6 +559,37 @@ func (ps ProxySynchronizer) SyncConnectionOpenAck(counterpartyConnectionID strin
 	return nil
 }
 
+func (ps ProxySynchronizer) SyncConnectionOpenConfirm() error {
+	provableHeight, err := ps.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	connRes, err := ps.upstream.QueryConnectionWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	log.Println("onConnectionOpenAck:", connRes.Proof, connRes.Connection)
+	if len(connRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the connection(height=%v)", provableHeight)
+	}
+	signer, err := ps.upstreamProxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	proxyMsg := &proxytypes.MsgProxyConnectionOpenFinalize{
+		ConnectionId:     ps.path.ConnectionID,
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		ProofConfirm:     connRes.Proof,
+		ProofHeight:      connRes.ProofHeight,
+		Signer:           signer.String(),
+	}
+	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return fmt.Errorf("failed to SendMsgs: %w", err)
+	}
+	return nil
+}
+
 func (ps ProxySynchronizer) SyncChannelOpenInit() error {
 	provableHeight, err := ps.updateProxyUpstreamClient()
 	if err != nil {
