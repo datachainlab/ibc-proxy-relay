@@ -60,7 +60,7 @@ func (up ProxyUpdater) OnSentMsg(msgs []sdk.Msg) error {
 			case *channeltypes.MsgChannelOpenAck:
 				return up.synchronizer.SyncChannelOpenAck()
 			case *channeltypes.MsgChannelOpenConfirm:
-				// nop
+				return up.synchronizer.SyncChannelOpenConfirm()
 			case *channeltypes.MsgRecvPacket:
 				return up.synchronizer.SyncRecvPacket(msg.Packet)
 			case *channeltypes.MsgAcknowledgement:

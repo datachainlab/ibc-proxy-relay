@@ -696,6 +696,38 @@ func (ps ProxySynchronizer) SyncChannelOpenAck() error {
 	return nil
 }
 
+func (ps ProxySynchronizer) SyncChannelOpenConfirm() error {
+	provableHeight, err := ps.updateProxyUpstreamClient()
+	if err != nil {
+		return err
+	}
+	chanRes, err := ps.upstream.QueryChannelWithProof(provableHeight)
+	if err != nil {
+		return err
+	}
+	log.Println("onChannelOpenConfirm:", chanRes.Proof, chanRes.Channel)
+	if len(chanRes.Proof) == 0 {
+		return fmt.Errorf("failed to query a proof of the channel(height=%v)", provableHeight)
+	}
+	signer, err := ps.upstreamProxy.GetAddress()
+	if err != nil {
+		return err
+	}
+	proxyMsg := &proxytypes.MsgProxyChannelOpenFinalize{
+		UpstreamClientId: ps.upstreamProxy.Path().ClientID,
+		UpstreamPrefix:   commitmenttypes.NewMerklePrefix([]byte(host.StoreKey)),
+		PortId:           ps.path.PortID,
+		ChannelId:        ps.path.ChannelID,
+		ProofConfirm:     chanRes.Proof,
+		ProofHeight:      chanRes.ProofHeight,
+		Signer:           signer.String(),
+	}
+	if _, err := ps.upstreamProxy.SendMsgs([]sdk.Msg{proxyMsg}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ps ProxySynchronizer) SyncRecvPacket(packet channeltypes.Packet) error {
 	provableHeight, err := ps.updateProxyUpstreamClient()
 	if err != nil {
