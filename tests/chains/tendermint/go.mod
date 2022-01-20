@@ -1,4 +1,4 @@
-module github.com/hyperledger-labs/yui-relayer/tests/tendermint
+module github.com/datachainlab/ibc-proxy-relay/tests/chains/tendermint
 
 go 1.16
 
