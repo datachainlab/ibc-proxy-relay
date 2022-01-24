@@ -119,6 +119,9 @@ func (pr *Prover) SetupHeader(dst core.LightClientIBCQueryierI, baseSrcHeader co
 // UpdateLightWithHeader updates a header on the light client and returns the header and height corresponding to the chain
 func (pr *Prover) UpdateLightWithHeader() (header core.HeaderI, provableHeight int64, queryableHeight int64, err error) {
 	if pr.upstreamProxy != nil {
+		if _, _, _, err = pr.prover.UpdateLightWithHeader(); err != nil {
+			return
+		}
 		return pr.upstreamProxy.UpdateLightWithHeader()
 	} else {
 		return pr.prover.UpdateLightWithHeader()
