@@ -95,11 +95,7 @@ func (pr *Prover) QueryLatestHeader() (out core.HeaderI, err error) {
 
 // GetLatestLightHeight returns the latest height on the light client
 func (pr *Prover) GetLatestLightHeight() (int64, error) {
-	if pr.upstreamProxy != nil {
-		return pr.upstreamProxy.GetLatestLightHeight()
-	} else {
-		return pr.prover.GetLatestLightHeight()
-	}
+	return pr.prover.GetLatestLightHeight()
 }
 
 // CreateMsgCreateClient creates a CreateClientMsg to this chain
